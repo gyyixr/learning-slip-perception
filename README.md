@@ -1,2 +1,2 @@
-# slip-perception-2020
+# Learning Slip Perception
 Slip perception Keras code for TCN GRU and LSTM based methods 
