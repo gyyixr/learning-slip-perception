@@ -56,8 +56,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.index)
 
     def __get_data(self, batch):
-        X = None# logic
-        y = None# logic
+        X = None # logic
+        y = None # logic
         
         # for i, id in enumerate(batch):
         #     X[i,] = None # logic

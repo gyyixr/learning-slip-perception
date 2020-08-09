@@ -40,7 +40,7 @@ class takktile_dataloader(object):
             series_len by reading the dictionary data in data_dir
         2.  Slip speed above SPEED_THRESH is considered slipping, class creates a list
             of slip and non-slip indices. Each of the datapoints in the time-series
-            data must be valid datapoint. # TODO: Add the valid field to data
+            data must be valid datapoint.
         3.  Valid data: any datapoint where most flow vectors are in agreement
     """
 
