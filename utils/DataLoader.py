@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 
 """
-data_utils.py
+DataLoader.py
 
 Util file for handling takktile recorded data
 
@@ -164,7 +164,7 @@ class takktile_dataloader(object):
             return ()
         ret_list = range(idx-self.series_len+1, idx+1)
         return self.__get_pressure(ret_list), \
-               (self.__get_slip_dir(idx), \
+               (self.__get_slip_angle(idx), \
                self.__get_slip_speed(idx))
 
     def __len__(self):
@@ -186,6 +186,10 @@ class takktile_dataloader(object):
             eprint("ERROR: {} has outdated data, skipping.....".format(data_dir))
             self.__data['num'] = 0
             return
+        # Generate angle data
+        slip_dir_array = self.__get_slip_dir(self.get_all_idx())
+        self.__slip_angle_data = np.array([math.atan2(a[1], a[0]) for a in slip_dir_array])
+
         # calculate time period of data recording
         if self.size() >= 2:
             self.__data_period = self.__get_time(1) - self.__get_time(0)
@@ -255,8 +259,7 @@ class takktile_dataloader(object):
                 if no_slip_counter >= self.series_len:
                     self.no_slip_stream_idx.append(idx)
                 if slip_counter >= self.series_len:
-                    temporal_dir = [math.atan2(i[1], i[0]) for i in self.__get_slip_dir(range(idx+1-self.series_len, idx+1))]
-                    temporal_std_dir = np.std(temporal_dir)
+                    temporal_std_dir = np.std(self.__get_slip_angle(range(idx+1-self.series_len, idx+1)))
                     if temporal_std_dir < TEMPORAL_DIR_STD:
                         self.slip_stream_idx.append(idx)
 
@@ -297,6 +300,9 @@ class takktile_dataloader(object):
 
     def __get_slip_dir(self, idx):
         return self.__data['slip_dir'][idx]
+
+    def __get_slip_angle(self, idx):
+        return self.__slip_angle_data[idx]
 
     def __get_slip_speed(self, idx):
         return self.__data['slip_speed'][idx]
