@@ -15,6 +15,7 @@ from __future__ import print_function
 import sys
 
 def eprint(*args, **kwargs):
+    print("ERROR: {}: ".format(__file__))
     print(*args, file=sys.stderr, **kwargs)
 #####################
 
@@ -24,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import scipy.io as sio
+import copy
 
 # GLOBAL VARIABLES
 SPEED_THRESH = 2.5                # Relatively tuned (High is strict for slip)
@@ -52,7 +54,7 @@ class takktile_dataloader(object):
         self.__load_data_dir(data_dir, mat_format)
 
         if self.empty():
-            eprint("ERROR: Not enough data in directory: {}".format(data_dir))
+            eprint("\t\t Not enough data in directory: {}".format(data_dir))
             return
 
         # Process Data
@@ -83,10 +85,10 @@ class takktile_dataloader(object):
             location: address including the name of the saved image
         """
         if self.empty():
-            eprint("ERROR: Cannot save histogram: empty loader")
+            eprint("\t\t Cannot save histogram: empty loader")
             return
         if not self.create_hist:
-            eprint("ERROR: Cannot save histogram: histogram disabled")
+            eprint("\t\t Cannot save histogram: histogram disabled")
             return
         self.slip_hist.savefig(location, dpi=self.slip_hist.dpi)
 
@@ -112,7 +114,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return self.slip_idx
+        return copy.copy(self.slip_idx)
 
     def get_no_slip_idx(self):
         """
@@ -120,7 +122,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return self.no_slip_idx
+        return copy.copy(self.no_slip_idx)
 
     def get_slip_stream_idx(self):
         """
@@ -128,7 +130,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return self.slip_stream_idx
+        return copy.copy(self.slip_stream_idx)
 
     def get_no_slip_stream_idx(self):
         """
@@ -136,7 +138,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return self.no_slip_stream_idx
+        return copy.copy(self.no_slip_stream_idx)
 
     def get_valid_idx(self):
         """
@@ -144,7 +146,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return self.valid_idx
+        return copy.copy(self.valid_idx)
 
     ###########################################
     #  PRIVATE FUNCTIONS
@@ -156,11 +158,11 @@ class takktile_dataloader(object):
             Data Format: [pressure], ([slip_dir], [slip_speed])
         """
         if self.empty() or not isinstance(idx, (int, long)):
-            eprint("ERROR: Incorrect index access: {}".format(idx))
+            eprint("\t\t Incorrect index access: {}".format(idx))
             return ()
 
         if idx<0 or idx>=self.size():
-            eprint("ERROR: Incorrect index access: {}".format(idx))
+            eprint("\t\t Incorrect index access: {}".format(idx))
             return ()
         ret_list = range(idx-self.series_len+1, idx+1)
         return self.__get_pressure(ret_list), \
@@ -183,12 +185,12 @@ class takktile_dataloader(object):
            'slip_speed' not in self.__data or \
            'slip_std' not in self.__data or \
            'slip_dir' not in self.__data:
-            eprint("ERROR: {} has outdated data, skipping.....".format(data_dir))
+            eprint("\t\t {} has outdated data, skipping.....".format(data_dir))
             self.__data['num'] = 0
             return
         # Generate angle data
         slip_dir_array = self.__get_slip_dir(self.get_all_idx())
-        self.__slip_angle_data = np.array([math.atan2(a[1], a[0]) for a in slip_dir_array])
+        self.__slip_angle_data = np.array([[math.atan2(a[1], a[0])] for a in slip_dir_array])
 
         # calculate time period of data recording
         if self.size() >= 2:
@@ -197,7 +199,7 @@ class takktile_dataloader(object):
     def __create_slip_hist(self, show=False, indices=[]):
         if (np.array(indices)<0).any() or \
            (np.array(indices) >= self.size()).any():
-            eprint("ERROR: create histogram: Incorrect indices")
+            eprint("\t\t create histogram: Incorrect indices")
             self.slip_hist = None
             return
 
@@ -320,6 +322,6 @@ if __name__ == "__main__":
     dataloaders = []
     for dir in data_dirs:
         dataloaders.append(takktile_dataloader(dir))
-        if not dataloaders[-1].empty():
-            print("Number of datapoints that have a seq num sized trail of slip data")
-            print(len(dataloaders[-1].get_slip_idx()))
+        # if not dataloaders[-1].empty():
+            # print("Number of datapoints that have a seq num sized trail of slip data")
+            # print(len(dataloaders[-1].get_slip_idx()))
