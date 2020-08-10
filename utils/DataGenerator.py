@@ -57,6 +57,81 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.on_epoch_end()
 
     ###########################################
+    #  API FUNCTIONS
+    ###########################################
+
+    def empty(self):
+        return self.num_dl <= 0
+
+    def load_data_from_dir(self, directory, series_len):
+        """
+        Recursive function to load data.mat files in directories with
+        signature *takktile_* into a dataloader.
+
+        Parameters
+        ------------
+        directory : str
+            the root directory for the takktile data you wish to load
+        series_len : int
+            The length of the input time series
+        """
+        if not os.path.isdir(directory):
+            eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
+            return
+
+        dir_list = [directory]
+
+        # Read Data from current directory
+        while dir_list:
+            current_dir = dir_list.pop(0)
+            data_file = current_dir + "/data.mat"
+            if os.path.isfile(data_file) and "takktile_" in current_dir:
+                self.dataloaders.append(takktile_dataloader(current_dir, input_len=series_len, create_hist=False))
+
+            # Find all child directories of takktile data and recursively load them
+            data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
+                    if os.path.isdir(os.path.join(current_dir, o)) and "takktile_" in o ]
+            for d in data_dirs:
+                dir_list.append(d)
+
+        self.num_dl = len(self.dataloaders)
+        # Reset and prepare data
+        self.on_epoch_end()
+
+    def on_epoch_end(self):
+        """ Created iterable list from dataloaders
+        """
+        if self.empty():
+            print("WARNING: {}: dataloaders are not loaded yet, cannot process data".format(__file__))
+
+        self.dl_idx = range(len(self.dataloaders))
+
+        self.slip_streams = []
+        self.n_slip_streams = []
+        self.num_slip_streams = 0
+        self.num_n_slip_streams = 0
+
+        for dl in self.dataloaders:
+            # Extract the slip and non-slip indices
+            if self.use_stream:
+                ss = dl.get_slip_stream_idx()
+                n_ss = dl.get_no_slip_stream_idx()
+            else:
+                ss = dl.get_slip_idx()
+                n_ss = dl.get_no_slip_idx()
+
+            if self.shuffle:
+                np.random.shuffle(ss)
+                np.random.shuffle(n_ss)
+
+            self.slip_streams.append(ss)
+            self.n_slip_streams.append(n_ss)
+
+            # Keep track of the number of each
+            self.num_slip_streams += len(ss)
+            self.num_n_slip_streams += len(n_ss)
+
+    ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################
 
@@ -97,80 +172,6 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         return X, (Y_a, Y_b)
 
 
-    ###########################################
-    #  API FUNCTIONS
-    ###########################################
-
-    def empty(self):
-        return self.num_dl <= 0
-
-    def on_epoch_end(self):
-        """ Created iterable list from dataloaders
-        """
-        if self.empty():
-            print("WARNING: {}: dataloaders are not loaded yet, cannot process data".format(__file__))
-
-        self.dl_idx = range(len(self.dataloaders))
-
-        self.slip_streams = []
-        self.n_slip_streams = []
-        self.num_slip_streams = 0
-        self.num_n_slip_streams = 0
-
-        for dl in self.dataloaders:
-            # Extract the slip and non-slip indices
-            if self.use_stream:
-                ss = dl.get_slip_stream_idx()
-                n_ss = dl.get_no_slip_stream_idx()
-            else:
-                ss = dl.get_slip_idx()
-                n_ss = dl.get_no_slip_idx()
-
-            if self.shuffle:
-                _ = np.random.shuffle(ss) if ss else None
-                _ = np.random.shuffle(n_ss) if n_ss else None
-
-            self.slip_streams.append(ss)
-            self.n_slip_streams.append(n_ss)
-
-            # Keep track of the number of each
-            self.num_slip_streams += len(ss)
-            self.num_n_slip_streams += len(n_ss)
-
-    def load_data_from_dir(self, directory, series_len):
-        """
-        Recursive function to load data.mat files in directories with
-        signature *takktile_* into a dataloader.
-
-        Parameters
-        ------------
-        directory : str
-            the root directory for the takktile data you wish to load
-        series_len : int
-            The length of the input time series
-        """
-        if not os.path.isdir(directory):
-            eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
-            return
-
-        dir_list = [directory]
-
-        # Read Data from current directory
-        while dir_list:
-            current_dir = dir_list.pop(0)
-            data_file = current_dir + "/data.mat"
-            if os.path.isfile(data_file) and "takktile_" in current_dir:
-                self.dataloaders.append(takktile_dataloader(current_dir, input_len=series_len, create_hist=False))
-
-            # Find all child directories of takktile data and recursively load them
-            data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                    if os.path.isdir(os.path.join(current_dir, o)) and "takktile_" in o ]
-            for d in data_dirs:
-                dir_list.append(d)
-
-        self.num_dl = len(self.dataloaders)
-        # Reset and prepare data
-        self.on_epoch_end()
 
 if __name__ == "__main__":
     data_base = "/home/abhinavg/data/takktile/"
