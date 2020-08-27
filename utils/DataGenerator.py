@@ -31,7 +31,7 @@ from DataLoader import takktile_dataloader, SPEED_THRESH
 
 class takktile_datagenerator(tf.keras.utils.Sequence):
 
-    def __init__(self, batch_size=32, shuffle=True, dataloaders=[], use_stream=False):
+    def __init__(self, batch_size=32, shuffle=True, dataloaders=[], use_stream=False, slip_prob=0.5):
         """ Init function for takktile data generator
 
         Parameters
@@ -46,12 +46,15 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             determines if each event occurance (False) is used to create inputs
             or only a series stream (True) of the same event occurance is
             considered a valid input
+        slip_prob : float(0.0-1.0)
         """
         self.batch_size = batch_size
         self.dataloaders = dataloaders
         self.num_dl = len(dataloaders)
         self.shuffle = shuffle
         self.use_stream = use_stream
+        self.slip_prob = slip_prob
+        assert slip_prob <= 1.0 and slip_prob >= 0.0
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -146,7 +149,6 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             return np.array([]), (np.array([]), np.array([]))
 
         if self.num_slip_streams + self.num_n_slip_streams > self.batch_size:
-            # Uniformly choose between slip and non-slip
             X = np.empty([0, self.dataloaders[0].series_len, 6])
             Y_a = np.empty([0, 1])
             Y_b = np.empty([0, 1])
@@ -154,7 +156,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 x, y = [], []
                 while len(x) == 0 or len(y) == 0:
                     idx = np.random.choice(self.dl_idx)
-                    slip_ = np.random.choice([True, False])
+                    # Uniformly choose between slip and non-slip
+                    slip_ = np.random.rand() <= self.slip_prob
                     array = self.slip_streams if slip_ else self.n_slip_streams
                     if array[idx]:
                         data_idx = array[idx].pop(0)
@@ -180,3 +183,4 @@ if __name__ == "__main__":
         print("The current Data generator is empty")
     dg.load_data_from_dir(directory=data_base, series_len=20)
     print("Num Batches: {}".format(len(dg)))
+    print(dg[0])

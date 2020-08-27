@@ -179,12 +179,12 @@ class takktile_dataloader(object):
         self.__data = sio.loadmat(data_dir + "/data.mat", appendmat=mat_format)
         # Check if the data contains all fields
         if 'num' not in self.__data or \
+           'mode' not in self.__data or \
+           'material' not in self.__data or \
            'temp' not in self.__data or \
            'pressure' not in self.__data or \
            'time' not in self.__data or \
-           'slip_speed' not in self.__data or \
-           'slip_std' not in self.__data or \
-           'slip_dir' not in self.__data:
+           'slip' not in self.__data:
             eprint("\t\t {} has outdated data, skipping.....".format(data_dir))
             self.__data['num'] = 0
             return
@@ -255,7 +255,7 @@ class takktile_dataloader(object):
                 # Storing slip and non slip index
                 if no_slip_counter > 0:
                     self.no_slip_idx.append(idx)
-                else:
+                elif slip_counter > 0:
                     self.slip_idx.append(idx)
                 # Store slip and non-slip stream indices
                 if no_slip_counter >= self.series_len:
@@ -301,16 +301,16 @@ class takktile_dataloader(object):
         return self.__data['temp'][idx]
 
     def __get_slip_dir(self, idx):
-        return self.__data['slip_dir'][idx]
+        return self.__data['slip'][idx][1:3]
 
     def __get_slip_angle(self, idx):
         return self.__slip_angle_data[idx]
 
     def __get_slip_speed(self, idx):
-        return self.__data['slip_speed'][idx]
+        return self.__data['slip'][idx][0]
 
     def __get_slip_std(self, idx):
-        return self.__data['slip_std'][idx]
+        return self.__data['slip'][idx][3:5]
 
     def __get_time(self, idx):
         return self.__data['time'][idx]
@@ -322,6 +322,6 @@ if __name__ == "__main__":
     dataloaders = []
     for dir in data_dirs:
         dataloaders.append(takktile_dataloader(dir))
-        # if not dataloaders[-1].empty():
+        if not dataloaders[-1].empty():
             # print("Number of datapoints that have a seq num sized trail of slip data")
-            # print(len(dataloaders[-1].get_slip_idx()))
+            print([dataloaders[-1][id] for id in dataloaders[-1].get_all_idx()])
