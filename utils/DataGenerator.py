@@ -27,7 +27,7 @@ import math
 import scipy.io as sio
 
 import tensorflow as tf
-from DataLoader import takktile_dataloader, SPEED_THRESH
+from DataLoader import takktile_dataloader
 
 class takktile_datagenerator(tf.keras.utils.Sequence):
 
