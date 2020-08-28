@@ -119,13 +119,37 @@ class takktile_dataloader(object):
             return []
         return range(self.size())
 
+    def get_valid_idx(self):
+        """
+        Return valid data indices
+        """
+        if self.empty():
+            return []
+        return copy.copy(self.valid_idx)
+
     def get_slip_idx(self):
         """
-        Return slip only data indices
+        Return translation slip only data indices
         """
         if self.empty():
             return []
         return copy.copy(self.slip_idx)
+
+    def get_rot_idx(self):
+        """
+        Return rotation slip only data indices
+        """
+        if self.empty():
+            return []
+        return copy.copy(self.rot_idx)
+    
+    def get_slip_n_rot_idx(self):
+        """
+        Return coupled slip data indices
+        """
+        if self.empty():
+            return []
+        return copy.copy(self.coupled_slip_idx)
 
     def get_no_slip_idx(self):
         """
@@ -150,14 +174,6 @@ class takktile_dataloader(object):
         if self.empty():
             return []
         return copy.copy(self.no_slip_stream_idx)
-
-    def get_valid_idx(self):
-        """
-        Return valid data indices
-        """
-        if self.empty():
-            return []
-        return copy.copy(self.valid_idx)
 
     ###########################################
     #  PRIVATE FUNCTIONS

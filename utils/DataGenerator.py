@@ -8,6 +8,8 @@ Keras datagenerator file for recorded takktile data
 Developed at UTIAS, Toronto.
 
 author: Abhinav Grover
+
+date: August 28, 2020
 """
 
 ##################### Error printing
@@ -30,6 +32,11 @@ import tensorflow as tf
 from DataLoader import takktile_dataloader
 
 class takktile_datagenerator(tf.keras.utils.Sequence):
+    """
+    Keras datagenerator for takktile slip detection data
+
+    Note: use load_data_from_dir function to populate data
+    """
 
     def __init__(self, batch_size=32, shuffle=True, dataloaders=[], use_stream=False, slip_prob=0.5):
         """ Init function for takktile data generator
