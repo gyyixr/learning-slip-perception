@@ -31,6 +31,14 @@ import scipy.io as sio
 import tensorflow as tf
 from DataLoader import takktile_dataloader
 
+# CONSTANTS
+ALL_VALID = 1
+ALL_SLIP = 2
+NO_SLIP = 3
+SLIP_TRANS = 4
+SLIP_ROT = 5
+
+
 class takktile_datagenerator(tf.keras.utils.Sequence):
     """
     Keras datagenerator for takktile slip detection data
@@ -38,7 +46,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, batch_size=32, shuffle=True, dataloaders=[], use_stream=False, slip_prob=0.5):
+    def __init__(self, batch_size=32, shuffle=True, dataloaders=[], data_mode=ALL_VALID):
         """ Init function for takktile data generator
 
         Parameters
@@ -49,19 +57,20 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
         dataloaders : takktile_dataloader
 
-        use_stream : bool
-            determines if each event occurance (False) is used to create inputs
-            or only a series stream (True) of the same event occurance is
-            considered a valid input
-        slip_prob : float(0.0-1.0)
+        data_mode: str
+            can only take a few options:
+            ALL_VALID
+            ALL_SLIP
+            NO_SLIP
+            SLIP_TRANS
+            SLIP_ROT
         """
         self.batch_size = batch_size
         self.dataloaders = dataloaders
         self.num_dl = len(dataloaders)
         self.shuffle = shuffle
-        self.use_stream = use_stream
-        self.slip_prob = slip_prob
-        assert slip_prob <= 1.0 and slip_prob >= 0.0
+        self.data_mode = data_mode
+        self.series_len = 0 if self.num_dl == 0 else self.dataloaders[0].series_len
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -89,6 +98,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
             return
 
+        self.series_len = series_len
         dir_list = [directory]
 
         # Read Data from current directory
@@ -115,31 +125,17 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             print("WARNING: {}: dataloaders are not loaded yet, cannot process data".format(__file__))
 
         self.dl_idx = range(len(self.dataloaders))
+        self.dl_data_idx = []
+        for idx in self.dl_idx:
+            # Extract data indices
+            data_idx_list = self.__get_data_idx(idx)
+            if self.shuffle: # Shuffle dataloader data list
+                np.random.shuffle(data_idx_list)
+            # Store Data indices
+            self.dl_data_idx.append(data_idx_list)
 
-        self.slip_streams = []
-        self.n_slip_streams = []
-        self.num_slip_streams = 0
-        self.num_n_slip_streams = 0
-
-        for dl in self.dataloaders:
-            # Extract the slip and non-slip indices
-            if self.use_stream:
-                ss = dl.get_slip_stream_idx()
-                n_ss = dl.get_no_slip_stream_idx()
-            else:
-                ss = dl.get_slip_idx()
-                n_ss = dl.get_no_slip_idx()
-
-            if self.shuffle:
-                np.random.shuffle(ss)
-                np.random.shuffle(n_ss)
-
-            self.slip_streams.append(ss)
-            self.n_slip_streams.append(n_ss)
-
-            # Keep track of the number of each
-            self.num_slip_streams += len(ss)
-            self.num_n_slip_streams += len(n_ss)
+        if self.shuffle: # Shuffle dataloader list
+            np.random.shuffle(self.dl_idx)
 
     ###########################################
     #  PRIVATE FUNCTIONS
@@ -148,40 +144,52 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     def __len__(self):
         if self.empty():
             return 0
-        return int(self.num_n_slip_streams + self.num_n_slip_streams) / self.batch_size
+        num = 0
+        for dl_idx in self.dl_data_idx:
+            num += len(dl_idx)
+        return int(num) / self.batch_size
 
 
-    def __getitem__(self, index):
-        if self.empty():
-            return np.array([]), (np.array([]), np.array([]))
+    def __getitem__(self, batch_index):
+        if self.empty() or batch_index >= self.__len__() or batch_index < 0:
+            eprint("Index out of bounds")
+            raise ValueError("Index out of bounds")
 
-        if self.num_slip_streams + self.num_n_slip_streams > self.batch_size:
-            X = np.empty([0, self.dataloaders[0].series_len, 6])
-            Y_a = np.empty([0, 1])
-            Y_b = np.empty([0, 1])
-            for i in range(self.batch_size):
-                x, y = [], []
-                while len(x) == 0 or len(y) == 0:
-                    idx = np.random.choice(self.dl_idx)
-                    # Uniformly choose between slip and non-slip
-                    slip_ = np.random.rand() <= self.slip_prob
-                    array = self.slip_streams if slip_ else self.n_slip_streams
-                    if array[idx]:
-                        data_idx = array[idx].pop(0)
-                        x, y = self.dataloaders[idx][data_idx]
-                        if slip_:
-                            self.num_slip_streams -= 1
-                        else:
-                            self.num_n_slip_streams -= 1
-                    else:
-                        continue
-                X = np.append(X, np.expand_dims(x, axis=0), axis=0)
-                Y_a = np.append(Y_a, np.reshape(y[0], [1,1]), axis=0)
-                Y_b = np.append(Y_b, np.reshape(y[1], [1,1]), axis=0)
+        # Fetching data from [index*bs] -> [(index+1)*bs] 
+        indices = range(batch_index*self.batch_size, (batch_index+1)*self.batch_size)
+        x_, y_ = self.dataloaders[0][0]
+        X = np.empty([0, self.series_len, len(x_[0])])
+        Y = np.empty([0, len(y_)])
+        for i in indices:
+            x = None
+            y = None
+            dl_id = 0
+            for dl_id in self.dl_idx:
+                # Find the bin that i belongs to
+                if i > len(self.dl_data_idx[dl_id]):
+                    i -= len(self.dl_data_idx[dl_id])
+                else:
+                    break
+            x, y = self.dataloaders[dl_id][self.dl_data_idx[dl_id][i]]
+            X = np.append(X, np.expand_dims(x, axis=0), axis=0)
+            Y = np.append(Y, np.expand_dims(y, axis=0), axis=0)
 
-        return X, (Y_a, Y_b)
+        return X, Y
 
-
+    def __get_data_idx(self, dl_id):
+        if self.data_mode == ALL_VALID:
+            return self.dataloaders[dl_id].get_valid_idx()
+        elif self.data_mode == ALL_SLIP:
+            return self.dataloaders[dl_id].get_slip_n_rot_idx()
+        elif self.data_mode == NO_SLIP:
+            return self.dataloaders[dl_id].get_no_slip_idx()
+        elif self.data_mode == SLIP_TRANS:
+            return self.dataloaders[dl_id].get_slip_idx()
+        elif self.data_mode == SLIP_ROT:
+            return self.dataloaders[dl_id].get_rot_idx()
+        else:
+            eprint("Unrecognised data mode: {}".format(self.data_mode))
+            raise ValueError("Unrecognised data mode")
 
 if __name__ == "__main__":
     data_base = "/home/abhinavg/data/takktile/"
@@ -190,4 +198,9 @@ if __name__ == "__main__":
         print("The current Data generator is empty")
     dg.load_data_from_dir(directory=data_base, series_len=20)
     print("Num Batches: {}".format(len(dg)))
-    print(dg[0])
+    print("First Batch Comparison")
+    print(np.all(dg[0][0] == dg[0][0]))
+    print(np.all(dg[0][1] == dg[0][1]))
+    print("First and second Batch Comparison")
+    print(np.all(dg[179][0] == dg[1][0]))
+    print(np.all(dg[179][1] == dg[1][1]))
