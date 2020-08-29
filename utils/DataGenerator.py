@@ -166,7 +166,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             dl_id = 0
             for dl_id in self.dl_idx:
                 # Find the bin that i belongs to
-                if i > len(self.dl_data_idx[dl_id]):
+                if i >= len(self.dl_data_idx[dl_id]):
                     i -= len(self.dl_data_idx[dl_id])
                 else:
                     break
@@ -175,6 +175,12 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             Y = np.append(Y, np.expand_dims(y, axis=0), axis=0)
 
         return X, Y
+
+
+    def __iter__(self):
+        """Create a generator that iterate over the Sequence."""
+        for item in (self[i] for i in range(len(self))):
+            yield item
 
     def __get_data_idx(self, dl_id):
         if self.data_mode == ALL_VALID:
@@ -199,8 +205,7 @@ if __name__ == "__main__":
     dg.load_data_from_dir(directory=data_base, series_len=20)
     print("Num Batches: {}".format(len(dg)))
     print("First Batch Comparison")
-    print(np.all(dg[0][0] == dg[0][0]))
-    print(np.all(dg[0][1] == dg[0][1]))
-    print("First and second Batch Comparison")
-    print(np.all(dg[179][0] == dg[1][0]))
-    print(np.all(dg[179][1] == dg[1][1]))
+    for i in range(len(dg)):
+        print(i)
+        print(np.all(dg[i][0] == dg[i][0]))
+        print(np.all(dg[i][1] == dg[i][1]))
