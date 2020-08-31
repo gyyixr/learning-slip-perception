@@ -46,7 +46,11 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, batch_size=32, shuffle=True, dataloaders=[], data_mode=ALL_VALID):
+    def __init__(self, batch_size=32,
+                       shuffle=True,
+                       dataloaders=[],
+                       data_mode=ALL_VALID,
+                       eval_data=False):
         """ Init function for takktile data generator
 
         Parameters
@@ -71,6 +75,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.shuffle = shuffle
         self.data_mode = data_mode
         self.series_len = 0 if self.num_dl == 0 else self.dataloaders[0].series_len
+        self.create_eval_data = eval_data
+        self.eval_len = 0
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -82,7 +88,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     def empty(self):
         return self.num_dl <= 0
 
-    def load_data_from_dir(self, directory, series_len):
+    def load_data_from_dir(self, dir_list=[], series_len=20):
         """
         Recursive function to load data.mat files in directories with
         signature *takktile_* into a dataloader.
@@ -94,12 +100,12 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         series_len : int
             The length of the input time series
         """
-        if not os.path.isdir(directory):
-            eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
-            return
+        for directory in dir_list:
+            if not os.path.isdir(directory):
+                eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
+                return
 
         self.series_len = series_len
-        dir_list = [directory]
 
         # Read Data from current directory
         while dir_list:
@@ -110,13 +116,16 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
             # Find all child directories of takktile data and recursively load them
             data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                    if os.path.isdir(os.path.join(current_dir, o)) and "takktile_" in o ]
+                    if os.path.isdir(os.path.join(current_dir, o))]
             for d in data_dirs:
                 dir_list.append(d)
 
         self.num_dl = len(self.dataloaders)
         # Reset and prepare data
         self.on_epoch_end()
+        if self.create_eval_data:
+            self.eval_len = (self.__len__())//10
+            self.create_eval_data = False
 
     def on_epoch_end(self):
         """ Created iterable list from dataloaders
@@ -137,9 +146,21 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         if self.shuffle: # Shuffle dataloader list
             np.random.shuffle(self.dl_idx)
 
+    def evaluation_data(self):
+        eprint("No eval Data available")
+        eval_len = self.eval_len
+        self.eval_len = 0
+        X, Y = self.__get_batches([self.__len__() -i-1 for i in range(eval_len)])
+        self.eval_len = eval_len
+        return X, Y
+
+    def get_all_batches(self):
+        return self.__get_batches(range(self.__len__()))
+
     ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################
+
 
     def __len__(self):
         if self.empty():
@@ -147,15 +168,26 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         num = 0
         for dl_idx in self.dl_data_idx:
             num += len(dl_idx)
-        return int(num) / self.batch_size
+        real_len = int(num) / self.batch_size
+        return real_len - self.eval_len
 
+    def __get_batches(self, batches=[]):
+        X_ = np.empty([0])
+        Y_ = np.empty([0])
+        for i in batches:
+            X, Y = self.__getitem__(i)
+            X_ = X if X_.size == 0 else np.append(X_, X, axis=0)
+            Y_ = Y if Y_.size == 0 else np.append(Y_, Y, axis=0)
+        if X_.size == 0 or Y_.size == 0:
+            return
+        return X_, Y_
 
     def __getitem__(self, batch_index):
         if self.empty() or batch_index >= self.__len__() or batch_index < 0:
             eprint("Index out of bounds")
-            raise ValueError("Index out of bounds")
+            raise ValueError("Index {} out of bounds for length {}".format(batch_index, self.__len__()))
 
-        # Fetching data from [index*bs] -> [(index+1)*bs] 
+        # Fetching data from [index*bs] -> [(index+1)*bs]
         indices = range(batch_index*self.batch_size, (batch_index+1)*self.batch_size)
         x_, y_ = self.dataloaders[0][0]
         X = np.empty([0, self.series_len, len(x_[0])])
@@ -202,7 +234,7 @@ if __name__ == "__main__":
     dg = takktile_datagenerator()
     if dg.empty():
         print("The current Data generator is empty")
-    dg.load_data_from_dir(directory=data_base, series_len=20)
+    dg.load_data_from_dir(dir_list=[data_base], series_len=20)
     print("Num Batches: {}".format(len(dg)))
     print("First Batch Comparison")
     for i in range(len(dg)):

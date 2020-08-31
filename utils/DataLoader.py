@@ -35,6 +35,10 @@ VICON_MODE = "vicon"
 IMU_MODE = "imu"
 FLOW_MODE = "flow"
 
+# Normalization CONSTANTS
+SPEED_SCALE = 1.0
+ANG_SPEED_SCALE = 20.0
+
 class takktile_dataloader(object):
     """
         Takktile data loading class (.mat files)
@@ -142,7 +146,7 @@ class takktile_dataloader(object):
         if self.empty():
             return []
         return copy.copy(self.rot_idx)
-    
+
     def get_slip_n_rot_idx(self):
         """
         Return coupled slip data indices
@@ -371,7 +375,7 @@ class takktile_dataloader(object):
             return self.__data['slip'][idx][0:2]
 
     def __get_slip_angle(self, idx):
-        return self.__slip_angle_data[idx]
+        return self.__slip_angle_data[idx]/SPEED_SCALE
 
     def __get_slip_speed(self, idx):
         if self.__get_mode() == FLOW_MODE:
@@ -383,7 +387,7 @@ class takktile_dataloader(object):
 
     def __get_ang_vel(self, idx):
         if self.__get_mode() != FLOW_MODE:
-            return self.__data['slip'][idx][2]
+            return self.__data['slip'][idx][2] / ANG_SPEED_SCALE
         else:
             raise self.__data['slip'][idx][2] * 0   #ZEROS
 
