@@ -166,4 +166,4 @@ def train_tcn_coupled(batch_size=32, series_len=20):
     train_tcn(datagen_train, datagen_train.evaluation_data())
 
 if __name__ == "__main__":
-    train_tcn_all(64, 20)
+    train_tcn_all(batch_size=64, series_len=20)

@@ -38,6 +38,8 @@ FLOW_MODE = "flow"
 # Normalization CONSTANTS
 SPEED_SCALE = 1.0
 ANG_SPEED_SCALE = 20.0
+PRESSURE_SCALE = 1.0
+PRESSURE_OFFSET = 500
 
 class takktile_dataloader(object):
     """
@@ -357,7 +359,7 @@ class takktile_dataloader(object):
         return True
 
     def __get_pressure(self, idx):
-        return self.__data['pressure'][idx]
+        return (self.__data['pressure'][idx] + PRESSURE_OFFSET)/PRESSURE_SCALE
 
     def __get_mode(self):
         return self.__data['mode']
