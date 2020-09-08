@@ -37,7 +37,7 @@ FLOW_MODE = "flow"
 
 # Normalization CONSTANTS
 SPEED_SCALE = 1.0
-ANG_SPEED_SCALE = 20.0
+ANG_SPEED_SCALE = 1.0
 PRESSURE_SCALE = 1.0
 PRESSURE_OFFSET = 500
 
@@ -62,7 +62,7 @@ class takktile_dataloader(object):
         self.__load_data_dir(data_dir, mat_format)
 
         # Set states
-        self.create_hist = create_hist and self.__get_mode() == FLOW_MODE
+        self.create_hist = create_hist
 
         # Set Global Variables
         self.__speed_thresh = 2.5 if self.__get_mode() == FLOW_MODE else 0.1
@@ -76,27 +76,27 @@ class takktile_dataloader(object):
 
         # Create histogram
         if self.create_hist:
-            # All indices
-            self.__create_slip_hist(indices=self.get_all_idx())
-            self.save_slip_hist(dir + "/slip_hist_all.png")
+            # # All indices
+            # self.__create_slip_hist(indices=self.get_all_idx())
+            # self.save_slip_hist(dir + "/slip_hist_all.png")
             # Valid indices
             self.__create_slip_hist(indices=self.get_valid_idx())
-            self.save_slip_hist(dir + "/slip_hist_valid.png")
-            # Slip stream indices
-            self.__create_slip_hist(indices=self.get_slip_stream_idx())
-            self.save_slip_hist(dir + "/slip_hist_slip.png")
-            # No Slip stream indices
-            self.__create_slip_hist(indices=self.get_no_slip_stream_idx())
-            self.save_slip_hist(dir + "/slip_hist_no_slip.png")
+            # self.save_slip_hist(data_dir)
+            # # Slip stream indices
+            # self.__create_slip_hist(indices=self.get_slip_stream_idx())
+            # self.save_slip_hist(dir + "/slip_hist_slip.png")
+            # # No Slip stream indices
+            # self.__create_slip_hist(indices=self.get_no_slip_stream_idx())
+            # self.save_slip_hist(dir + "/slip_hist_no_slip.png")
 
 
     ###########################################
     #  API FUNCTIONS
     ###########################################
-    def save_slip_hist(self, location):
+    def save_slip_hist(self, directory):
         """
-        Save the 2D histogram of the slip data at location
-            location: address including the name of the saved image
+        Save the 2D histogram of the slip data at directory
+            directory: address including the name of the saved image
         """
         if self.empty():
             eprint("\t\t Cannot save histogram: empty loader")
@@ -104,7 +104,10 @@ class takktile_dataloader(object):
         if not self.create_hist:
             eprint("\t\t Cannot save histogram: histogram disabled")
             return
-        self.slip_hist.savefig(location, dpi=self.slip_hist.dpi)
+        if self.slip_vel_hist:
+            self.slip_vel_hist.savefig(directory + "/vel_hist.png", dpi=self.slip_vel_hist.dpi)
+        if self.slip_ang_vel_hist:
+            self.slip_ang_vel_hist.savefig(directory + "/ang_vel_hist.png", dpi=self.slip_ang_vel_hist.dpi)
 
     def size(self):
         if self.empty():
@@ -240,28 +243,60 @@ class takktile_dataloader(object):
         if (np.array(indices)<0).any() or \
            (np.array(indices) >= self.size()).any():
             eprint("\t\t create histogram: Incorrect indices")
-            self.slip_hist = None
+            self.slip_vel_hist = None
             return
 
-        hist_data = self.__get_slip_dir(indices) * \
-                    self.__get_slip_speed(indices)
-        self.slip_hist = plt.figure(figsize=(10,10))
-        plt.hist2d(hist_data[:, 0], hist_data[:, 1], bins=100)
-        t = np.linspace(0,np.pi*2,100)
-        plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
-        plt.title("Slip Histogram of {} points in {}\
-                  ".format(len(indices), self.__data_dir))
-        plt.xlabel('x')
-        plt.ylabel('y')
-        plt.axis('equal')
+        if not indices:
+            indices = self.get_all_idx()
+
+        if self.__get_mode() == FLOW_MODE:
+            hist_data = [self.__get_slip_dir(index)*self.__get_slip_speed(index) \
+                         for index in indices]
+            self.slip_vel_hist = plt.figure(figsize=(10,10))
+            plt.hist2d([d[0] for d in hist_data] , [d[1] for Trued in hist_data], bins=100)
+            t = np.linspace(0,np.pi*2,100)
+            plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
+            plt.title("Slip Histogram of {} points in {}\
+                    ".format(len(indices), self.__data_dir))
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.axis('equal')
+        else:
+            # Slip Speed Hist
+            hist_data = [self.__get_slip_dir(index) / SPEED_SCALE \
+                         for index in indices]
+            self.slip_vel_hist = plt.figure(figsize=(10,10))
+            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=25)
+            t = np.linspace(0,np.pi*2,100)
+            plt.plot(np.cos(t), np.sin(t), linewidth=1)
+            plt.title("Slip Histogram of {} points\
+                    ".format(len(indices)))
+            plt.xlabel('x')
+            plt.ylabel('y')
+            plt.axis('equal')
+
+            # Angular Velocity Histogram
+            hist_ang_data = [self.__get_ang_vel(index) / ANG_SPEED_SCALE \
+                         for index in indices]
+            self.slip_ang_vel_hist = plt.figure(figsize=(10,10))
+            plt.hist(hist_ang_data)
+            plt.title("Slip Angular Velocity Histogram of {} points\
+                    ".format(len(indices)))
+            plt.xlabel('Angular Vel rad/s')
+            plt.ylabel('Frequency')
+        
         if show:
             self.__show_slip_hist()
 
     def __show_slip_hist(self):
-        if not self.slip_hist:
+        if not self.slip_vel_hist:
             self.__create_slip_hist(show=True)
         else:
-            plt.show(self.slip_hist)
+            plt.show(self.slip_vel_hist)
+        if not self.slip_ang_vel_hist:
+            self.__create_slip_hist(show=True)
+        else:
+            plt.show(self.slip_ang_vel_hist)
 
     def __process_data(self):
         # define index lists
@@ -374,10 +409,10 @@ class takktile_dataloader(object):
         if self.__get_mode() == FLOW_MODE:
             return self.__data['slip'][idx][1:3]
         else:
-            return self.__data['slip'][idx][0:2]
+            return self.__data['slip'][idx][0:2] * SPEED_SCALE
 
     def __get_slip_angle(self, idx):
-        return self.__slip_angle_data[idx]/SPEED_SCALE
+        return self.__slip_angle_data[idx]
 
     def __get_slip_speed(self, idx):
         if self.__get_mode() == FLOW_MODE:
@@ -389,7 +424,7 @@ class takktile_dataloader(object):
 
     def __get_ang_vel(self, idx):
         if self.__get_mode() != FLOW_MODE:
-            return self.__data['slip'][idx][2] / ANG_SPEED_SCALE
+            return self.__data['slip'][idx][2] * ANG_SPEED_SCALE
         else:
             raise self.__data['slip'][idx][2] * 0   #ZEROS
 
@@ -401,12 +436,14 @@ class takktile_dataloader(object):
 
 
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/"
+    data_base = "/home/abhinavg/data/takktile/val/takktile_felt/coupled"
     data_dirs = [os.path.join(data_base, o) for o in os.listdir(data_base)
                 if os.path.isdir(os.path.join(data_base,o)) and "takktile_" in o ]
     dataloaders = []
     for dir in data_dirs:
-        dataloaders.append(takktile_dataloader(dir))
+        dataloaders.append(takktile_dataloader(dir, create_hist=True))
         if not dataloaders[-1].empty():
-            # print("Number of datapoints that have a seq num sized trail of slip data")
-            print([dataloaders[-1][id][1] for id in dataloaders[-1].get_slip_idx()])
+            dataloaders[-1].save_slip_hist(dir)
+            # # print("Number of datapoints that have a seq num sized trail of slip data")
+            # data = [dataloaders[-1][id][1] for id in dataloaders[-1].get_valid_idx() if dataloaders[-1][id][1][0] > 0.5]
+            # [print(dat) for dat in data]
