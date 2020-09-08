@@ -68,6 +68,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             NO_SLIP
             SLIP_TRANS
             SLIP_ROT
+
+        eval_data: bool
+
         """
         self.batch_size = batch_size
         self.dataloaders = dataloaders
@@ -88,7 +91,11 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     def empty(self):
         return self.num_dl <= 0
 
-    def load_data_from_dir(self, dir_list=[], series_len=20):
+    def load_data_from_dir(self,
+                           dir_list=[],
+                           series_len=20,
+                           translation=True,
+                           rotation=True):
         """
         Recursive function to load data.mat files in directories with
         signature *takktile_* into a dataloader.
@@ -112,7 +119,12 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             current_dir = dir_list.pop(0)
             data_file = current_dir + "/data.mat"
             if os.path.isfile(data_file) and "takktile_" in current_dir:
-                self.dataloaders.append(takktile_dataloader(current_dir, input_len=series_len, create_hist=False))
+                self.dataloaders.append(takktile_dataloader(data_dir=current_dir,
+                                                            input_len=series_len,
+                                                            create_hist=False,
+                                                            rotation=rotation,
+                                                            translation=translation))
+                # self.dataloaders[-1].save_slip_hist(directory=current_dir)
 
             # Find all child directories of takktile data and recursively load them
             data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
@@ -147,7 +159,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.dl_idx)
 
     def evaluation_data(self):
-        eprint("No eval Data available")
+        if not self.create_eval_data:
+            eprint("No eval Data available")
         eval_len = self.eval_len
         self.eval_len = 0
         X, Y = self.__get_batches([self.__len__() -i-1 for i in range(eval_len)])
@@ -230,7 +243,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             raise ValueError("Unrecognised data mode")
 
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/"
+    data_base = "/home/abhinavg/data/takktile/train"
     dg = takktile_datagenerator()
     if dg.empty():
         print("The current Data generator is empty")

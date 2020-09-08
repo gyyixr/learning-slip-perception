@@ -55,7 +55,11 @@ class takktile_dataloader(object):
         3.  Valid data: any datapoint where most flow vectors are in agreement
     """
 
-    def __init__(self, data_dir, input_len = 20, create_hist=False, mat_format = True):
+    def __init__(self, data_dir, input_len = 20,
+                       create_hist=False,
+                       mat_format = True,
+                       rotation=True,
+                       translation=True):
         self.series_len = input_len
 
         # Load Data
@@ -63,6 +67,8 @@ class takktile_dataloader(object):
 
         # Set states
         self.create_hist = create_hist
+        self.get_translation = translation
+        self.get_rotation = rotation
 
         # Set Global Variables
         self.__speed_thresh = 2.5 if self.__get_mode() == FLOW_MODE else 0.1
@@ -207,10 +213,22 @@ class takktile_dataloader(object):
                    (self.__get_slip_angle(idx), \
                     self.__get_slip_speed(idx))
         else:
-            return self.__get_pressure(ret_list), \
-                   (self.__get_slip_dir(idx)[0], \
-                    self.__get_slip_dir(idx)[1], \
-                    self.__get_ang_vel(idx))
+            if self.get_translation and self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                       (self.__get_slip_dir(idx)[0], \
+                        self.__get_slip_dir(idx)[1], \
+                        self.__get_ang_vel(idx))
+            elif not self.get_translation and self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                        self.__get_ang_vel(idx)
+            elif self.get_translation and not self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                       (self.__get_slip_dir(idx)[0], \
+                        self.__get_slip_dir(idx)[1])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
+
+
 
     def __len__(self):
         return self.size()
