@@ -203,8 +203,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         # Fetching data from [index*bs] -> [(index+1)*bs]
         indices = range(batch_index*self.batch_size, (batch_index+1)*self.batch_size)
         x_, y_ = self.dataloaders[0][0]
-        X = np.empty([0, self.series_len, len(x_[0])])
-        Y = np.empty([0, len(y_)])
+        X = np.empty([0, self.series_len, np.size(x_[0])])
+        Y = np.empty([0, np.size(y_)])
         for i in indices:
             x = None
             y = None
@@ -216,8 +216,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 else:
                     break
             x, y = self.dataloaders[dl_id][self.dl_data_idx[dl_id][i]]
-            X = np.append(X, np.expand_dims(x, axis=0), axis=0)
-            Y = np.append(Y, np.expand_dims(y, axis=0), axis=0)
+            X = np.append(X, np.expand_dims(np.array(x), axis=0), axis=0)
+            Y = np.append(Y, np.expand_dims(np.array(y, ndmin=1), axis=0), axis=0)
 
         return X, Y
 

@@ -220,7 +220,7 @@ class takktile_dataloader(object):
                         self.__get_ang_vel(idx))
             elif not self.get_translation and self.get_rotation:
                 return self.__get_pressure(ret_list), \
-                        self.__get_ang_vel(idx)
+                       (self.__get_ang_vel(idx))
             elif self.get_translation and not self.get_rotation:
                 return self.__get_pressure(ret_list), \
                        (self.__get_slip_dir(idx)[0], \

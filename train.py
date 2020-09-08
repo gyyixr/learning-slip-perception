@@ -51,7 +51,7 @@ def train_tcn(datagen_train, val_data=()):
                         regression=True,
                         dropout_rate=0.1,
                         # use_batch_norm=True,
-                        output_layers=[8 ,test_y.shape[1]])
+                        output_layers=[8, test_y.shape[1]])
     tcn_full_summary(model)
 
     # Create Tensorboard callback
@@ -86,7 +86,7 @@ def train_tcn_all(batch_size=32, series_len=20):
     dir_list = ["/home/abhinavg/data/takktile/train"]
     datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
 
-     # Create datagenerator Val
+    # Create datagenerator Val
     datagen_val = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=ALL_VALID,
@@ -163,7 +163,18 @@ def train_tcn_coupled(batch_size=32, series_len=20):
         if all(["coupled" in d for d in dir_list]):
             break
     datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-    train_tcn(datagen_train, datagen_train.evaluation_data())
+
+    # Create datagenerator Val
+    datagen_val = takktile_datagenerator(batch_size=batch_size,
+                                           shuffle=True,
+                                           data_mode=ALL_VALID,
+                                           eval_data=False)
+
+    # Load data into datagen
+    dir_list = ["/home/abhinavg/data/takktile/val"]
+    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len)
+
+    train_tcn(datagen_train, datagen_val.get_all_batches())
 
 if __name__ == "__main__":
-    train_tcn_all(batch_size=64, series_len=50)
+    train_tcn_all(batch_size=64, series_len=20)
