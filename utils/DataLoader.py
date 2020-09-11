@@ -28,7 +28,8 @@ import scipy.io as sio
 import copy
 
 # GLOBAL VARIABLES
-# SPEED_THRESH = 2.5                # Relatively tuned (High is strict for slip)
+SPEED_THRESH_FLOW = 2.5                # Relatively tuned (High is strict for slip)
+SPEED_THRESH_ = 0.2
 SLIP_STD_VALID_MULTIPLIER = 0.625  # Tuned to lie between 0.62 and 0.68 (High is strict)
 TEMPORAL_DIR_STD = math.pi*3/18   # Error upto 30 degree is allowed (High is lenient)
 VICON_MODE = "vicon"
@@ -37,7 +38,7 @@ FLOW_MODE = "flow"
 
 # Normalization CONSTANTS
 SPEED_SCALE = 1.0
-ANG_SPEED_SCALE = 1.0
+ANG_SPEED_SCALE = 0.2
 PRESSURE_SCALE = 1.0
 PRESSURE_OFFSET = 500
 
@@ -71,7 +72,8 @@ class takktile_dataloader(object):
         self.get_rotation = rotation
 
         # Set Global Variables
-        self.__speed_thresh = 2.5 if self.__get_mode() == FLOW_MODE else 0.1
+        self.__speed_thresh = SPEED_THRESH_FLOW if self.__get_mode() == FLOW_MODE \
+                                                else SPEED_THRESH_*SPEED_SCALE
 
         if self.empty():
             eprint("\t\t Not enough data in directory: {}".format(data_dir))
@@ -286,7 +288,7 @@ class takktile_dataloader(object):
             self.slip_vel_hist = plt.figure(figsize=(10,10))
             plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=25)
             t = np.linspace(0,np.pi*2,100)
-            plt.plot(np.cos(t), np.sin(t), linewidth=1)
+            plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
             plt.title("Slip Histogram of {} points\
                     ".format(len(indices)))
             plt.xlabel('x')
@@ -338,12 +340,13 @@ class takktile_dataloader(object):
                    abs(self.__get_ang_vel(idx)) < self.__speed_thresh:
                     no_slip_counter += 1
                     slip_counter = 0
+                    rot_counter = 0
                 elif self.__get_slip_speed(idx) > self.__speed_thresh and \
                    abs(self.__get_ang_vel(idx)) < self.__speed_thresh:
                     no_slip_counter = 0
                     slip_counter += 1
                     rot_counter = 0
-                elif self.__get_slip_speed(idx) > self.__speed_thresh and \
+                elif self.__get_slip_speed(idx) < self.__speed_thresh and \
                    abs(self.__get_ang_vel(idx)) > self.__speed_thresh:
                     no_slip_counter = 0
                     slip_counter = 0
