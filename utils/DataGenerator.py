@@ -33,7 +33,7 @@ from DataLoader import takktile_dataloader
 
 # CONSTANTS
 ALL_VALID = 1
-ALL_SLIP = 2
+BOTH_SLIP = 2
 NO_SLIP = 3
 SLIP_TRANS = 4
 SLIP_ROT = 5
@@ -63,11 +63,11 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
         data_mode: str
             can only take a few options:
-            ALL_VALID
-            ALL_SLIP
-            NO_SLIP
-            SLIP_TRANS
-            SLIP_ROT
+            ALL_VALID - all valid data
+            BOTH_SLIP - data containing both rotation and translation slip
+            NO_SLIP - no slip in data
+            SLIP_TRANS - only translation slip in data
+            SLIP_ROT - only rotation slip in data
 
         eval_data: bool
 
@@ -106,6 +106,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             the root directory for the takktile data you wish to load
         series_len : int
             The length of the input time series
+        translation: bool
+            indicated whether translation speed should be included in the output or not
+        rotation: bool
+            indicated whether rotation speed should be included in the output or not
         """
         for directory in dir_list:
             if not os.path.isdir(directory):
@@ -230,7 +234,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     def __get_data_idx(self, dl_id):
         if self.data_mode == ALL_VALID:
             return self.dataloaders[dl_id].get_valid_idx()
-        elif self.data_mode == ALL_SLIP:
+        elif self.data_mode == BOTH_SLIP:
             return self.dataloaders[dl_id].get_slip_n_rot_idx()
         elif self.data_mode == NO_SLIP:
             return self.dataloaders[dl_id].get_no_slip_idx()

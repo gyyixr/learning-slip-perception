@@ -56,11 +56,26 @@ class takktile_dataloader(object):
         3.  Valid data: any datapoint where most flow vectors are in agreement
     """
 
-    def __init__(self, data_dir, input_len = 20,
+    def __init__(self, data_dir,
+                       input_len = 20,
                        create_hist=False,
                        mat_format = True,
                        rotation=True,
                        translation=True):
+        """
+        Parameters
+        --------------
+        data_dir: str
+            must be a valid takktile data directory with data.mat file present
+        input_len: int
+            The temporal length of the time series data used as input for learning
+        create_hist: bool
+            indicated whether histogram should be generated or not
+        rotation: bool
+            indicated whether rotation speed should be included in the output or not
+        translation: bool
+            indicated whether translation speed should be included in the output or not
+        """
         self.series_len = input_len
 
         # Load Data
@@ -304,7 +319,7 @@ class takktile_dataloader(object):
                     ".format(len(indices)))
             plt.xlabel('Angular Vel rad/s')
             plt.ylabel('Frequency')
-        
+
         if show:
             self.__show_slip_hist()
 
