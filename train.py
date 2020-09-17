@@ -32,7 +32,7 @@ from utils import takktile_datagenerator
 
 
 #CONSTANTS
-from utils import ALL_VALID, ALL_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
+from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 
 
 def train_tcn(datagen_train, val_data=()):
@@ -42,16 +42,16 @@ def train_tcn(datagen_train, val_data=()):
     # Create TCN model
     model = compiled_tcn(return_sequences=False,
                         num_feat=test_x.shape[2],
-                        nb_filters=16,
-                        kernel_size=8,
-                        dilations=[2 ** i for i in range(9)],
+                        nb_filters=24,
+                        kernel_size=10,
+                        dilations=[2 ** i for i in range(11)],
                         nb_stacks=1,
                         max_len=test_x.shape[1],
                         use_skip_connections=True,
                         regression=True,
                         dropout_rate=0.1,
                         # use_batch_norm=True,
-                        output_layers=[8, test_y.shape[1]])
+                        output_layers=[16, 16, 8, test_y.shape[1]])
     tcn_full_summary(model)
 
     # Create Tensorboard callback
@@ -63,7 +63,7 @@ def train_tcn(datagen_train, val_data=()):
     # Train Model
     model.fit(x=datagen_train,
               verbose=1, #0: Suppress chatty output; use Tensorboard instead
-              epochs=20,
+              epochs=50,
               callbacks=[tensorboard_callback],
               # MultiProcessing options
               max_queue_size=10,
@@ -76,6 +76,9 @@ def train_tcn(datagen_train, val_data=()):
                include_optimizer=True)
 
 def train_tcn_all(batch_size=32, series_len=20):
+    """
+        Train for both rotation and translation velocity using all the valid data
+    """
     # Create datagenerator Train
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
@@ -98,14 +101,18 @@ def train_tcn_all(batch_size=32, series_len=20):
 
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
-def train_tcn_translation(batch_size=32, series_len=20):
+def train_tcn_translation(data_home, batch_size=32, series_len=20):
+    """
+        Translation only training using translation dominant data which has been filtered to 
+        only include data points with high translation velocity and low rotation velocity
+    """
     # Create datagenerator
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
-                                           data_mode=ALL_VALID,
+                                           data_mode=SLIP_TRANS,
                                            eval_data=True)
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/"]
+    dir_list = [data_home + "/train/takktile_mat"]
     while dir_list:
         current_dir = dir_list.pop(0)
 
@@ -117,17 +124,32 @@ def train_tcn_translation(batch_size=32, series_len=20):
             dir_list.append(d)
         if all(["translation" in d for d in dir_list]):
             break
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-    train_tcn(datagen_train, datagen_train.evaluation_data())
+    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
 
-def train_tcn_rotation(batch_size=32, series_len=20):
+    # Create datagenerator Val
+    datagen_val = takktile_datagenerator(batch_size=batch_size,
+                                           shuffle=True,
+                                           data_mode=SLIP_TRANS,
+                                           eval_data=False)
+
+    # Load data into datagen
+    dir_list = [data_home + "/val/takktile_mat"]
+    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
+
+    train_tcn(datagen_train, datagen_val.get_all_batches())
+
+def train_tcn_rotation(data_home, batch_size=32, series_len=20):
+    """
+        Rotation only training using rotation dominant data which has been filtered to 
+        only include data points with high rotation velocity and low translation velocity
+    """
     # Create datagenerator
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
-                                           data_mode=ALL_VALID,
+                                           data_mode=SLIP_ROT,
                                            eval_data=True)
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/"]
+    dir_list = [data_home + "/train/"]
     while dir_list:
         current_dir = dir_list.pop(0)
 
@@ -139,8 +161,19 @@ def train_tcn_rotation(batch_size=32, series_len=20):
             dir_list.append(d)
         if all(["rotation" in d for d in dir_list]):
             break
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-    train_tcn(datagen_train, datagen_train.evaluation_data())
+    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
+
+    # Create datagenerator Val
+    datagen_val = takktile_datagenerator(batch_size=batch_size,
+                                           shuffle=True,
+                                           data_mode=SLIP_ROT,
+                                           eval_data=False)
+
+    # Load data into datagen
+    dir_list = [data_home + "/val/"]
+    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
+
+    train_tcn(datagen_train, datagen_val.get_all_batches())
 
 
 def train_tcn_coupled(batch_size=32, series_len=20):
@@ -177,4 +210,6 @@ def train_tcn_coupled(batch_size=32, series_len=20):
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
 if __name__ == "__main__":
-    train_tcn_all(batch_size=64, series_len=20)
+    train_tcn_translation(data_home = "/home/abhinavg/data/takktile/data-v1",
+                          batch_size=32,
+                          series_len=30)
