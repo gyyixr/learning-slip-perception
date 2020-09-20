@@ -27,7 +27,7 @@ import math
 import scipy.io as sio
 import copy
 
-# GLOBAL VARIABLES
+# GLOBAL CONSTANTS
 SPEED_THRESH_FLOW = 2.5                # Relatively tuned (High is strict for slip)
 SPEED_THRESH_ = 0.2
 SLIP_STD_VALID_MULTIPLIER = 0.625  # Tuned to lie between 0.62 and 0.68 (High is strict)
@@ -36,11 +36,11 @@ VICON_MODE = "vicon"
 IMU_MODE = "imu"
 FLOW_MODE = "flow"
 
-# Normalization CONSTANTS
+# Transformation CONSTANTS
 SPEED_SCALE = 1.0
 ANG_SPEED_SCALE = 0.2
 PRESSURE_SCALE = 1.0
-PRESSURE_OFFSET = 500
+PRESSURE_OFFSET = 0
 
 class takktile_dataloader(object):
     """
@@ -112,6 +112,39 @@ class takktile_dataloader(object):
             # self.__create_slip_hist(indices=self.get_no_slip_stream_idx())
             # self.save_slip_hist(dir + "/slip_hist_no_slip.png")
 
+    def __getitem__(self, idx):
+        """
+        Return learning data at index
+            Data Format: [pressure], ([slip_dir], [slip_speed])
+        """
+        if self.empty() or not isinstance(idx, (int, long)):
+            eprint("\t\t Incorrect index access: {}".format(idx))
+            return ()
+
+        if idx<0 or idx>=self.size():
+            eprint("\t\t Incorrect index access: {}".format(idx))
+            return ()
+
+        ret_list = range(idx-self.series_len+1, idx+1)
+        if self.__get_mode() == FLOW_MODE:
+            return self.__get_pressure(ret_list), \
+                   np.array([self.__get_slip_angle(idx), \
+                             self.__get_slip_speed(idx)])
+        else:
+            if self.get_translation and self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                       np.array([self.__get_slip_dir(idx)[0], \
+                                self.__get_slip_dir(idx)[1], \
+                                self.__get_ang_vel(idx)])
+            elif not self.get_translation and self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                       np.array([self.__get_ang_vel(idx)])
+            elif self.get_translation and not self.get_rotation:
+                return self.__get_pressure(ret_list), \
+                       np.array([self.__get_slip_dir(idx)[0], \
+                                self.__get_slip_dir(idx)[1]])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
 
     ###########################################
     #  API FUNCTIONS
@@ -139,6 +172,111 @@ class takktile_dataloader(object):
 
     def empty(self):
         return self.__data['num'] <= self.series_len
+
+    def get_data_mean(self):
+        """
+        Get means of inputs and outputs
+        return: (input_means, output_means)
+        """
+        all_indices = self.get_all_idx()
+
+        if self.__get_mode() == FLOW_MODE:
+            return np.mean(self.__get_pressure(all_indices), axis=0), \
+                   np.array([np.mean(self.__get_slip_angle(all_indices)), \
+                             np.mean(self.__get_slip_speed(all_indices))])
+        else:
+            if self.get_translation and self.get_rotation:
+                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.mean(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.mean(self.__get_slip_dir(all_indices)[:, 1]), \
+                                  np.mean(self.__get_ang_vel(all_indices))])
+            elif not self.get_translation and self.get_rotation:
+                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.mean(self.__get_ang_vel(all_indices))])
+            elif self.get_translation and not self.get_rotation:
+                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.mean(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.mean(self.__get_slip_dir(all_indices)[:, 1])])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
+
+    def get_data_std(self):
+        """
+        Get standard deviations of inputs and outputs
+        return: (input_means, output_means)
+        """
+        all_indices = self.get_all_idx()
+        if self.__get_mode() == FLOW_MODE:
+            return np.std(self.__get_pressure(all_indices), axis=0), \
+                    np.array([np.std(self.__get_slip_angle(all_indices)), \
+                              np.std(self.__get_slip_speed(all_indices))])
+        else:
+            if self.get_translation and self.get_rotation:
+                return np.std(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.std(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.std(self.__get_slip_dir(all_indices)[:, 1]), \
+                                  np.std(self.__get_ang_vel(all_indices))])
+            elif not self.get_translation and self.get_rotation:
+                return np.std(self.__get_pressure(all_indices), axis=0), \
+                       np.array([np.std(self.__get_ang_vel(all_indices))])
+            elif self.get_translation and not self.get_rotation:
+                return np.std(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.std(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.std(self.__get_slip_dir(all_indices)[:, 1])])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
+
+    def get_data_min(self):
+        """
+        Get standard deviations of inputs and outputs
+        return: (input_means, output_means)
+        """
+        all_indices = self.get_all_idx()
+        if self.__get_mode() == FLOW_MODE:
+            return np.min(self.__get_pressure(all_indices), axis=0), \
+                    np.array([np.min(self.__get_slip_angle(all_indices)), \
+                              np.min(self.__get_slip_speed(all_indices))])
+        else:
+            if self.get_translation and self.get_rotation:
+                return np.min(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.min(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.min(self.__get_slip_dir(all_indices)[:, 1]), \
+                                  np.min(self.__get_ang_vel(all_indices))])
+            elif not self.get_translation and self.get_rotation:
+                return np.min(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.min(self.__get_ang_vel(all_indices))])
+            elif self.get_translation and not self.get_rotation:
+                return np.min(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.min(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.min(self.__get_slip_dir(all_indices)[:, 1])])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
+
+    def get_data_max(self):
+        """
+        Get standard deviations of inputs and outputs
+        return: (input_means, output_means)
+        """
+        all_indices = self.get_all_idx()
+        if self.__get_mode() == FLOW_MODE:
+            return np.max(self.__get_pressure(all_indices), axis=0), \
+                    np.array([np.max(self.__get_slip_angle(all_indices)), \
+                              np.max(self.__get_slip_speed(all_indices))])
+        else:
+            if self.get_translation and self.get_rotation:
+                return np.max(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.max(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.max(self.__get_slip_dir(all_indices)[:, 1]), \
+                                  np.max(self.__get_ang_vel(all_indices))])
+            elif not self.get_translation and self.get_rotation:
+                return np.max(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.max(self.__get_ang_vel(all_indices))])
+            elif self.get_translation and not self.get_rotation:
+                return np.max(self.__get_pressure(all_indices), axis=0), \
+                        np.array([np.max(self.__get_slip_dir(all_indices)[:, 0]), \
+                                  np.max(self.__get_slip_dir(all_indices)[:, 1])])
+            else:
+                raise ValueError("translation and rotation cannot be false together")
 
     def get_mode(self):
         return self.__get_mode()
@@ -210,42 +348,6 @@ class takktile_dataloader(object):
     ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################
-
-    def __getitem__(self, idx):
-        """
-        Return learning data at index
-            Data Format: [pressure], ([slip_dir], [slip_speed])
-        """
-        if self.empty() or not isinstance(idx, (int, long)):
-            eprint("\t\t Incorrect index access: {}".format(idx))
-            return ()
-
-        if idx<0 or idx>=self.size():
-            eprint("\t\t Incorrect index access: {}".format(idx))
-            return ()
-
-        ret_list = range(idx-self.series_len+1, idx+1)
-        if self.__get_mode() == FLOW_MODE:
-            return self.__get_pressure(ret_list), \
-                   (self.__get_slip_angle(idx), \
-                    self.__get_slip_speed(idx))
-        else:
-            if self.get_translation and self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       (self.__get_slip_dir(idx)[0], \
-                        self.__get_slip_dir(idx)[1], \
-                        self.__get_ang_vel(idx))
-            elif not self.get_translation and self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       (self.__get_ang_vel(idx))
-            elif self.get_translation and not self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       (self.__get_slip_dir(idx)[0], \
-                        self.__get_slip_dir(idx)[1])
-            else:
-                raise ValueError("translation and rotation cannot be false together")
-
-
 
     def __len__(self):
         return self.size()
@@ -443,43 +545,45 @@ class takktile_dataloader(object):
 
     def __get_slip_dir(self, idx):
         if self.__get_mode() == FLOW_MODE:
-            return self.__data['slip'][idx][1:3]
+            return self.__data['slip'][idx, 1:3]
         else:
-            return self.__data['slip'][idx][0:2] * SPEED_SCALE
+            return self.__data['slip'][idx, 0:2] * SPEED_SCALE
 
     def __get_slip_angle(self, idx):
         return self.__slip_angle_data[idx]
 
     def __get_slip_speed(self, idx):
         if self.__get_mode() == FLOW_MODE:
-            return self.__data['slip'][idx][0]
+            return self.__data['slip'][idx, 0]
         else:
             if isinstance(idx, (int, long)):
-                return np.linalg.norm(self.__data['slip'][idx,0:2])
-            return np.linalg.norm(self.__data['slip'][idx,0:2], axis=1)
+                return np.linalg.norm(self.__data['slip'][idx, 0:2])
+            return np.linalg.norm(self.__data['slip'][idx, 0:2], axis=1)
 
     def __get_ang_vel(self, idx):
         if self.__get_mode() != FLOW_MODE:
-            return self.__data['slip'][idx][2] * ANG_SPEED_SCALE
+            return self.__data['slip'][idx, 2] * ANG_SPEED_SCALE
         else:
-            raise self.__data['slip'][idx][2] * 0   #ZEROS
+            raise self.__data['slip'][idx, 2] * 0   #ZEROS
 
     def __get_slip_std(self, idx):
         if self.__get_mode() == FLOW_MODE:
-            return self.__data['slip'][idx][3:5]
+            return self.__data['slip'][idx, 3:5]
         else:
             raise NotImplementedError
 
 
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/val/takktile_felt/coupled"
+    data_base = "/home/abhinavg/data/takktile/data-v1/train/takktile_mat/translation"
     data_dirs = [os.path.join(data_base, o) for o in os.listdir(data_base)
                 if os.path.isdir(os.path.join(data_base,o)) and "takktile_" in o ]
     dataloaders = []
     for dir in data_dirs:
-        dataloaders.append(takktile_dataloader(dir, create_hist=True))
+        dataloaders.append(takktile_dataloader(dir, create_hist=True, rotation=True))
         if not dataloaders[-1].empty():
-            dataloaders[-1].save_slip_hist(dir)
+            print(dataloaders[-1].get_data_mean())
+            print(dataloaders[-1].get_data_std())
+            print("")
             # # print("Number of datapoints that have a seq num sized trail of slip data")
             # data = [dataloaders[-1][id][1] for id in dataloaders[-1].get_valid_idx() if dataloaders[-1][id][1][0] > 0.5]
             # [print(dat) for dat in data]

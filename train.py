@@ -110,9 +110,10 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
-                                           eval_data=True)
+                                           eval_data=False,
+                                           transform='minmax')
     # Load data into datagen
-    dir_list = [data_home + "/train/takktile_mat"]
+    dir_list = [data_home + "/train/"]
     while dir_list:
         current_dir = dir_list.pop(0)
 
@@ -130,12 +131,18 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
     datagen_val = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
-                                           eval_data=False)
+                                           eval_data=False,
+                                           transform='minmax')
 
     # Load data into datagen
-    dir_list = [data_home + "/val/takktile_mat"]
+    dir_list = [data_home + "/val/"]
     datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
 
+    # Load training tranformation
+    a,b,c,d = datagen_train.get_data_attributes()
+    datagen_val.set_data_attributes(a,b,c,d)
+
+    # Start Training
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
 def train_tcn_rotation(data_home, batch_size=32, series_len=20):

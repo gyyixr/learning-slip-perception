@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import math
 import scipy.io as sio
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 import tensorflow as tf
 from DataLoader import takktile_dataloader
@@ -50,7 +51,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                        shuffle=True,
                        dataloaders=[],
                        data_mode=ALL_VALID,
-                       eval_data=False):
+                       eval_data=False,
+                       transform = None):
         """ Init function for takktile data generator
 
         Parameters
@@ -80,6 +82,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.series_len = 0 if self.num_dl == 0 else self.dataloaders[0].series_len
         self.create_eval_data = eval_data
         self.eval_len = 0
+        self.transform_type = transform
+
+        if transform:
+            assert transform == 'standard' or transform == 'minmax'
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -137,6 +143,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 dir_list.append(d)
 
         self.num_dl = len(self.dataloaders)
+
+        if self.transform_type:
+            self.__calculate_data_transforms()
+
         # Reset and prepare data
         self.on_epoch_end()
         if self.create_eval_data:
@@ -173,6 +183,68 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
     def get_all_batches(self):
         return self.__get_batches(range(self.__len__()))
+
+    def set_data_attributes(self, means, stds, maxs, mins):
+        """
+        Setter funtion for data attributes
+        means, stds, maxs, and mins should include ones for both inputs
+        and outputs
+        """
+        # Assuming all inputs have the signature (in, out)
+        if not self.transform_type:
+            raise ValueError
+
+        # Create Min Max scaler
+        assert len(mins) == len(maxs) == 2
+        self.min_in, self.min_out = mins
+        self.max_in, self.max_out = maxs
+
+        self.mm_scaler_in = MinMaxScaler()
+        self.mm_scaler_in.fit([self.min_in, self.max_in])
+
+        self.mm_scaler_out = MinMaxScaler()
+        self.mm_scaler_out.fit([self.min_out, self.max_out])
+
+        # Create standardization scaler
+        assert len(means) == len(stds) == 2
+        self.mean_in, self.mean_out = means
+        self.std_in, self.std_out = stds
+
+        self.stand_scaler_in = StandardScaler()
+        self.stand_scaler_in.fit([self.mean_in, self.mean_in])
+        self.stand_scaler_in.scale_ = self.std_in
+
+        self.stand_scaler_out = StandardScaler()
+        self.stand_scaler_out.fit([self.mean_out, self.mean_out])
+        self.stand_scaler_out.scale_ = self.std_out
+
+        self.__set_data_transform(self.transform_type)
+
+    def get_data_attributes(self):
+        """
+        Geter function for the data attributes currently in use
+        """
+        if not self.transform_type:
+            raise ValueError
+        return ((self.mean_in, self.mean_out),
+                (self.std_in, self.std_out),
+                (self.max_in, self.max_out),
+                (self.min_in, self.min_out))
+
+    def __set_data_transform(self, transform_type):
+        """
+        Set one of the acceptable transform types
+        minmax or standard
+        """
+        if not self.transform_type or not transform_type:
+            raise ValueError("{} | {}".format(self.transform_type, transform_type))
+
+        if transform_type == 'minmax':
+            self.transform = (self.mm_scaler_in, self.mm_scaler_out)
+        elif transform_type == 'standard':
+            self.transform = (self.stand_scaler_in, self.stand_scaler_out)
+        else:
+            raise ValueError(self.transform_type)
 
     ###########################################
     #  PRIVATE FUNCTIONS
@@ -220,9 +292,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 else:
                     break
             x, y = self.dataloaders[dl_id][self.dl_data_idx[dl_id][i]]
+            if self.transform_type:
+                # TODO: Handle the series_len = 0 case
+                x = self.transform[0].transform(x)
             X = np.append(X, np.expand_dims(np.array(x), axis=0), axis=0)
             Y = np.append(Y, np.expand_dims(np.array(y, ndmin=1), axis=0), axis=0)
-
+        if self.transform_type:
+            Y = self.transform[1].transform(Y)
         return X, Y
 
 
@@ -246,9 +322,70 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             eprint("Unrecognised data mode: {}".format(self.data_mode))
             raise ValueError("Unrecognised data mode")
 
+    def __calculate_data_transforms(self):
+        """
+        Calculate the Normalization and Standardization tranforms for this data
+        https://towardsai.net/p/data-science/how-when-and-why-should-you-normalize-standardize-rescale-your-data-3f083def38ff
+        https://stats.stackexchange.com/questions/55999/is-it-possible-to-find-the-combined-standard-deviation
+        """
+        if not self.transform_type:
+            raise ValueError
+
+        # Get all mean and std of dataloaders
+        mean_in = None
+        mean_out = None
+        max_in = None
+        max_out = None
+        min_in = None
+        min_out = None
+        num_dps = 0
+
+        for dl in self.dataloaders:
+            # Means
+            m_in, m_out = dl.get_data_mean()
+            mean_in = dl.size()*m_in if mean_in is None else mean_in + dl.size()*m_in
+            mean_out = dl.size()*m_out if mean_out is None else mean_out + dl.size()*m_out
+
+            # Maxs
+            m_in, m_out = dl.get_data_max()
+            max_in = m_in if max_in is None else np.maximum(max_in, m_in)
+            max_out = m_out if max_out is None else np.maximum(max_out, m_out)
+
+            # Mins
+            m_in, m_out = dl.get_data_min()
+            min_in = m_in if min_in is None else np.minimum(min_in, m_in)
+            min_out = m_out if min_out is None else np.minimum(min_out, m_out)
+
+            num_dps += dl.size()
+        mean_in /= num_dps
+        mean_out /= num_dps
+
+        assert np.shape(mean_in) == np.shape(min_in) == np.shape(max_in)
+        assert np.shape(mean_out) == np.shape(min_out) == np.shape(max_out)
+
+        # Calculate the combined std of inputs and outputs
+        std_in = None
+        std_out = None
+        for dl in self.dataloaders:
+            # Stds
+            m_in, m_out = dl.get_data_mean()
+            s_in, s_out = dl.get_data_std()
+            std_in = dl.size()*(s_in**2 + (m_in - mean_in)**2) if std_in is None \
+                          else std_in + dl.size()*(s_in**2 + (m_in - mean_in)**2)
+            std_out = dl.size()*(s_out**2 + (m_out - mean_out)**2) if std_out is None \
+                          else std_out + dl.size()*(s_out**2 + (m_out - mean_out)**2)
+        std_in = np.sqrt(std_in/num_dps)
+        std_out = np.sqrt(std_out/num_dps)
+
+        self.set_data_attributes(means=(mean_in, mean_out),
+                                 stds=(std_in, std_out),
+                                 maxs=(max_in, max_out),
+                                 mins=(min_in, min_out))
+
+
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/train"
-    dg = takktile_datagenerator()
+    data_base = "/home/abhinavg/data/takktile/data-v1"
+    dg = takktile_datagenerator(transform='standard')
     if dg.empty():
         print("The current Data generator is empty")
     dg.load_data_from_dir(dir_list=[data_base], series_len=20)
