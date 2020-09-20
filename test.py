@@ -21,7 +21,7 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 #####################
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # This is to suppress TF logs
 import numpy as np
 import sys
 from datetime import datetime
@@ -89,7 +89,8 @@ def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
     datagen_test = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
-                                           eval_data=True)
+                                           eval_data=False,
+                                           transform='minmax')
     # Load data into datagen
     dir_list = [test_data_dir]
     while dir_list:

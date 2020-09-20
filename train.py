@@ -103,7 +103,7 @@ def train_tcn_all(batch_size=32, series_len=20):
 
 def train_tcn_translation(data_home, batch_size=32, series_len=20):
     """
-        Translation only training using translation dominant data which has been filtered to 
+        Translation only training using translation dominant data which has been filtered to
         only include data points with high translation velocity and low rotation velocity
     """
     # Create datagenerator
@@ -147,7 +147,7 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
 
 def train_tcn_rotation(data_home, batch_size=32, series_len=20):
     """
-        Rotation only training using rotation dominant data which has been filtered to 
+        Rotation only training using rotation dominant data which has been filtered to
         only include data points with high rotation velocity and low translation velocity
     """
     # Create datagenerator
