@@ -42,16 +42,19 @@ def train_tcn(datagen_train, val_data=()):
     # Create TCN model
     model = compiled_tcn(return_sequences=False,
                         num_feat=test_x.shape[2],
-                        nb_filters=24,
+                        nb_filters=48,
                         kernel_size=10,
-                        dilations=[2 ** i for i in range(11)],
+                        dilations=[2 ** i for i in range(9)],
                         nb_stacks=1,
                         max_len=test_x.shape[1],
                         use_skip_connections=True,
                         regression=True,
                         dropout_rate=0.1,
-                        # use_batch_norm=True,
-                        output_layers=[16, 16, 8, test_y.shape[1]])
+                        activation='elu',
+                        opt='adam',
+                        use_batch_norm=False, # TODO: Debug Batch Norm and layer Norm,
+                        use_layer_norm=False,
+                        output_layers=[24, 16, 8, test_y.shape[1]])
     tcn_full_summary(model)
 
     # Create Tensorboard callback
@@ -63,7 +66,7 @@ def train_tcn(datagen_train, val_data=()):
     # Train Model
     model.fit(x=datagen_train,
               verbose=1, #0: Suppress chatty output; use Tensorboard instead
-              epochs=50,
+              epochs=100,
               callbacks=[tensorboard_callback],
               # MultiProcessing options
               max_queue_size=10,
@@ -111,7 +114,7 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
                                            eval_data=False,
-                                           transform='minmax')
+                                           transform='standard')
     # Load data into datagen
     dir_list = [data_home + "/train/"]
     while dir_list:
@@ -132,7 +135,7 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
                                            eval_data=False,
-                                           transform='minmax')
+                                           transform='standard')
 
     # Load data into datagen
     dir_list = [data_home + "/val/"]
@@ -219,4 +222,4 @@ def train_tcn_coupled(batch_size=32, series_len=20):
 if __name__ == "__main__":
     train_tcn_translation(data_home = "/home/abhinavg/data/takktile/data-v1",
                           batch_size=32,
-                          series_len=30)
+                          series_len=50)

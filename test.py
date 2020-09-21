@@ -90,7 +90,7 @@ def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
                                            shuffle=True,
                                            data_mode=SLIP_TRANS,
                                            eval_data=False,
-                                           transform='minmax')
+                                           transform='standard')
     # Load data into datagen
     dir_list = [test_data_dir]
     while dir_list:
@@ -124,4 +124,4 @@ if __name__ == "__main__":
     args = sys.argv
     model_name = args[1]
     data_dir = "/home/abhinavg/data/takktile/data-v1/train/"
-    test_translation(model_name, data_dir, batch_size=32, series_len=30)
+    test_translation(model_name, data_dir, batch_size=32, series_len=50)

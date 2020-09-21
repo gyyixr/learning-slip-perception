@@ -390,7 +390,7 @@ class takktile_dataloader(object):
             hist_data = [self.__get_slip_dir(index)*self.__get_slip_speed(index) \
                          for index in indices]
             self.slip_vel_hist = plt.figure(figsize=(10,10))
-            plt.hist2d([d[0] for d in hist_data] , [d[1] for Trued in hist_data], bins=100)
+            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=100)
             t = np.linspace(0,np.pi*2,100)
             plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
             plt.title("Slip Histogram of {} points in {}\

@@ -215,7 +215,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.stand_scaler_in.scale_ = self.std_in
 
         self.stand_scaler_out = StandardScaler()
-        self.stand_scaler_out.fit([self.mean_out, self.mean_out])
+        self.stand_scaler_out.fit([self.mean_out * 0., self.mean_out * 0.]) # Ouput needs to be ZERO mean
         self.stand_scaler_out.scale_ = self.std_out
 
         self.__set_data_transform(self.transform_type)
