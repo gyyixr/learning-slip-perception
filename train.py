@@ -28,12 +28,14 @@ import tensorflow as tf
 from tensorflow import keras
 
 from nets import compiled_tcn, tcn_full_summary
-from utils import takktile_datagenerator
+from utils import takktile_datagenerator, load_yaml, save_yaml
 
 
 #CONSTANTS
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
-
+CWD = os.path.dirname(os.path.realpath(__file__))
+logdir = CWD + "/logs"
+config_dir = CWD + "/configs"
 
 def train_tcn(datagen_train, val_data=()):
     # Get sample output
@@ -50,7 +52,7 @@ def train_tcn(datagen_train, val_data=()):
                         use_skip_connections=True,
                         regression=True,
                         dropout_rate=0.1,
-                        activation='elu',
+                        activation='selu',
                         opt='adam',
                         use_batch_norm=False, # TODO: Debug Batch Norm and layer Norm,
                         use_layer_norm=False,
@@ -58,7 +60,6 @@ def train_tcn(datagen_train, val_data=()):
     tcn_full_summary(model)
 
     # Create Tensorboard callback
-    logdir = "./logs"
     log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
@@ -78,7 +79,10 @@ def train_tcn(datagen_train, val_data=()):
                overwrite=True,
                include_optimizer=True)
 
-def train_tcn_all(batch_size=32, series_len=20):
+    # Delete all variables
+    del test_x, test_y, model
+
+def train_tcn_all(data_home, batch_size=32, series_len=20):
     """
         Train for both rotation and translation velocity using all the valid data
     """
@@ -86,23 +90,33 @@ def train_tcn_all(batch_size=32, series_len=20):
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=ALL_VALID,
-                                           eval_data=False)
+                                           eval_data=False,
+                                           transform='standard')
 
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/train"]
+    dir_list = [data_home + "/train/"]
     datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
 
     # Create datagenerator Val
     datagen_val = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=ALL_VALID,
-                                           eval_data=False)
+                                           eval_data=False,
+                                           transform='standard')
 
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/val"]
+    dir_list = [data_home + "/val/"]
     datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len)
 
+    # Load training tranformation
+    a,b,c,d = datagen_train.get_data_attributes()
+    datagen_val.set_data_attributes(a,b,c,d)
+
+    # Start Training
     train_tcn(datagen_train, datagen_val.get_all_batches())
+
+    # Delete all variables
+    del datagen_train, datagen_val, dir_list
 
 def train_tcn_translation(data_home, batch_size=32, series_len=20):
     """
@@ -119,7 +133,6 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
     dir_list = [data_home + "/train/"]
     while dir_list:
         current_dir = dir_list.pop(0)
-
         # Find all child directories of takktile data and recursively load them
         data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
                      if os.path.isdir(os.path.join(current_dir, o)) and
@@ -148,6 +161,9 @@ def train_tcn_translation(data_home, batch_size=32, series_len=20):
     # Start Training
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
+    # Delete all variables
+    del datagen_train, datagen_val, dir_list
+
 def train_tcn_rotation(data_home, batch_size=32, series_len=20):
     """
         Rotation only training using rotation dominant data which has been filtered to
@@ -157,12 +173,12 @@ def train_tcn_rotation(data_home, batch_size=32, series_len=20):
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=SLIP_ROT,
-                                           eval_data=True)
+                                           eval_data=False,
+                                           transform='standard')
     # Load data into datagen
     dir_list = [data_home + "/train/"]
     while dir_list:
         current_dir = dir_list.pop(0)
-
         # Find all child directories of takktile data and recursively load them
         data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
                      if os.path.isdir(os.path.join(current_dir, o))and
@@ -177,23 +193,33 @@ def train_tcn_rotation(data_home, batch_size=32, series_len=20):
     datagen_val = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=SLIP_ROT,
-                                           eval_data=False)
+                                           eval_data=False,
+                                           transform='standard')
 
     # Load data into datagen
     dir_list = [data_home + "/val/"]
     datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
 
+    # Load training tranformation
+    a,b,c,d = datagen_train.get_data_attributes()
+    datagen_val.set_data_attributes(a,b,c,d)
+
+    # Start Training
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
+    # Delete all variables
+    del datagen_train, datagen_val, dir_list
 
-def train_tcn_coupled(batch_size=32, series_len=20):
+
+def train_tcn_coupled(data_home, batch_size=32, series_len=20):
     # Create datagenerator
     datagen_train = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=ALL_VALID,
-                                           eval_data=True)
+                                           eval_data=False,
+                                           transform='standard')
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/"]
+    dir_list = [data_home + "/train/"]
     while dir_list:
         current_dir = dir_list.pop(0)
 
@@ -211,15 +237,35 @@ def train_tcn_coupled(batch_size=32, series_len=20):
     datagen_val = takktile_datagenerator(batch_size=batch_size,
                                            shuffle=True,
                                            data_mode=ALL_VALID,
-                                           eval_data=False)
+                                           eval_data=False,
+                                           transform='standard')
 
     # Load data into datagen
-    dir_list = ["/home/abhinavg/data/takktile/val"]
+    dir_list = [data_home + "/val/"]
     datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len)
 
+    # Load training tranformation
+    a,b,c,d = datagen_train.get_data_attributes()
+    datagen_val.set_data_attributes(a,b,c,d)
+
+    # Start Training
     train_tcn(datagen_train, datagen_val.get_all_batches())
 
+    # Delete all variables
+    del datagen_train, datagen_val, dir_list
+
 if __name__ == "__main__":
-    train_tcn_translation(data_home = "/home/abhinavg/data/takktile/data-v1",
-                          batch_size=32,
-                          series_len=50)
+    mode = sys.argv[1]
+
+    if mode == "all":
+        train_tcn_all(data_home = "/home/abhinavg/data/takktile/data-v1",
+                    batch_size=32,
+                    series_len=100)
+    elif mode == "trans":
+        train_tcn_translation(data_home = "/home/abhinavg/data/takktile/data-v1",
+                    batch_size=32,
+                    series_len=100)
+    elif mode == "rot":
+        train_tcn_rotation(data_home = "/home/abhinavg/data/takktile/data-v1",
+                    batch_size=32,
+                    series_len=100)

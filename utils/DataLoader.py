@@ -29,7 +29,7 @@ import copy
 
 # GLOBAL CONSTANTS
 SPEED_THRESH_FLOW = 2.5                # Relatively tuned (High is strict for slip)
-SPEED_THRESH_ = 0.2
+SPEED_THRESH_ = 0.1
 SLIP_STD_VALID_MULTIPLIER = 0.625  # Tuned to lie between 0.62 and 0.68 (High is strict)
 TEMPORAL_DIR_STD = math.pi*3/18   # Error upto 30 degree is allowed (High is lenient)
 VICON_MODE = "vicon"
@@ -390,7 +390,7 @@ class takktile_dataloader(object):
             hist_data = [self.__get_slip_dir(index)*self.__get_slip_speed(index) \
                          for index in indices]
             self.slip_vel_hist = plt.figure(figsize=(10,10))
-            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=100)
+            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=50)
             t = np.linspace(0,np.pi*2,100)
             plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
             plt.title("Slip Histogram of {} points in {}\
@@ -403,7 +403,7 @@ class takktile_dataloader(object):
             hist_data = [self.__get_slip_dir(index) / SPEED_SCALE \
                          for index in indices]
             self.slip_vel_hist = plt.figure(figsize=(10,10))
-            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=25)
+            plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=50)
             t = np.linspace(0,np.pi*2,100)
             plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
             plt.title("Slip Histogram of {} points\
@@ -416,7 +416,7 @@ class takktile_dataloader(object):
             hist_ang_data = [self.__get_ang_vel(index) / ANG_SPEED_SCALE \
                          for index in indices]
             self.slip_ang_vel_hist = plt.figure(figsize=(10,10))
-            plt.hist(hist_ang_data)
+            plt.hist(hist_ang_data, bins=100)
             plt.title("Slip Angular Velocity Histogram of {} points\
                     ".format(len(indices)))
             plt.xlabel('Angular Vel rad/s')
@@ -584,6 +584,3 @@ if __name__ == "__main__":
             print(dataloaders[-1].get_data_mean())
             print(dataloaders[-1].get_data_std())
             print("")
-            # # print("Number of datapoints that have a seq num sized trail of slip data")
-            # data = [dataloaders[-1][id][1] for id in dataloaders[-1].get_valid_idx() if dataloaders[-1][id][1][0] > 0.5]
-            # [print(dat) for dat in data]

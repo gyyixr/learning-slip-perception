@@ -134,6 +134,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                                                             create_hist=False,
                                                             rotation=rotation,
                                                             translation=translation))
+                # Uncomment this for saving histograms, also create_hist = true
                 # self.dataloaders[-1].save_slip_hist(directory=current_dir)
 
             # Find all child directories of takktile data and recursively load them
@@ -231,21 +232,6 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 (self.max_in, self.max_out),
                 (self.min_in, self.min_out))
 
-    def __set_data_transform(self, transform_type):
-        """
-        Set one of the acceptable transform types
-        minmax or standard
-        """
-        if not self.transform_type or not transform_type:
-            raise ValueError("{} | {}".format(self.transform_type, transform_type))
-
-        if transform_type == 'minmax':
-            self.transform = (self.mm_scaler_in, self.mm_scaler_out)
-        elif transform_type == 'standard':
-            self.transform = (self.stand_scaler_in, self.stand_scaler_out)
-        else:
-            raise ValueError(self.transform_type)
-
     ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################
@@ -322,6 +308,21 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             eprint("Unrecognised data mode: {}".format(self.data_mode))
             raise ValueError("Unrecognised data mode")
 
+    def __set_data_transform(self, transform_type):
+        """
+        Set one of the acceptable transform types
+        minmax or standard
+        """
+        if not self.transform_type or not transform_type:
+            raise ValueError("{} | {}".format(self.transform_type, transform_type))
+
+        if transform_type == 'minmax':
+            self.transform = (self.mm_scaler_in, self.mm_scaler_out)
+        elif transform_type == 'standard':
+            self.transform = (self.stand_scaler_in, self.stand_scaler_out)
+        else:
+            raise ValueError(self.transform_type)
+
     def __calculate_data_transforms(self):
         """
         Calculate the Normalization and Standardization tranforms for this data
@@ -385,10 +386,25 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 if __name__ == "__main__":
     data_base = "/home/abhinavg/data/takktile/data-v1"
-    dg = takktile_datagenerator(transform='standard')
+    dg = takktile_datagenerator(shuffle=True,
+                                data_mode=ALL_VALID,
+                                eval_data=False,
+                                transform='standard')
     if dg.empty():
         print("The current Data generator is empty")
-    dg.load_data_from_dir(dir_list=[data_base], series_len=20)
+    # Load data into datagen
+    dir_list = [data_base + "/train/"]
+    while dir_list:
+        current_dir = dir_list.pop(0)
+        # Find all child directories of takktile data and recursively load them
+        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
+                     if os.path.isdir(os.path.join(current_dir, o))and
+                    not ("translation" in o or "coupled" in o)]
+        for d in data_dirs:
+            dir_list.append(d)
+        if all(["rotation" in d for d in dir_list]):
+            break
+    dg.load_data_from_dir(dir_list=dir_list, series_len=100, translation=False)
     print("Num Batches: {}".format(len(dg)))
     print("First Batch Comparison")
     for i in range(len(dg)):

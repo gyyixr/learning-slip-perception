@@ -95,7 +95,6 @@ def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
     dir_list = [test_data_dir]
     while dir_list:
         current_dir = dir_list.pop(0)
-
         # Find all child directories of takktile data and recursively load them
         data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
                      if os.path.isdir(os.path.join(current_dir, o)) and
@@ -119,9 +118,80 @@ def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
                         save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
 
 
+def test_rotation(model_name, test_data_dir, batch_size=32, series_len=20):
+    """
+        Rotation only training using Rotation dominant data which has been filtered to
+        only include data points with high Rotation velocity and low translation velocity
+    """
+    # Create datagenerator
+    datagen_test = takktile_datagenerator(batch_size=batch_size,
+                                           shuffle=True,
+                                           data_mode=SLIP_ROT,
+                                           eval_data=False,
+                                           transform='standard')
+    # Load data into datagen
+    dir_list = [test_data_dir]
+    while dir_list:
+        current_dir = dir_list.pop(0)
+        # Find all child directories of takktile data and recursively load them
+        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
+                     if os.path.isdir(os.path.join(current_dir, o)) and
+                    not ("translation" in o or "coupled" in o)]
+        for d in data_dirs:
+            dir_list.append(d)
+        if all(["rotation" in d for d in dir_list]):
+            break
+    datagen_test.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
+
+    # Test the data
+    model = keras.models.load_model(MODELS_DIR + model_name)
+    x, y, y_predict = test_model(model, datagen_test)
+
+    # plot test data
+    assert np.shape(y) == np.shape(y_predict)
+    num_plots = np.shape(y)[1]
+    for id in range(num_plots):
+        plot_prediction(y[:, id], y_predict[:,id],
+                        name="prediction plot for output dim {}".format(id),
+                        save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
+
+def test_all(model_name, test_data_dir, batch_size=32, series_len=20):
+    """
+        Test on all data
+    """
+    # Create datagenerator
+    datagen_test = takktile_datagenerator(batch_size=batch_size,
+                                           shuffle=True,
+                                           data_mode=ALL_VALID,
+                                           eval_data=False,
+                                           transform='standard')
+    # Load data into datagen
+    dir_list = [test_data_dir]
+    datagen_test.load_data_from_dir(dir_list=dir_list, series_len=series_len)
+
+    # Test the data
+    model = keras.models.load_model(MODELS_DIR + model_name)
+    x, y, y_predict = test_model(model, datagen_test)
+
+    # plot test data
+    assert np.shape(y) == np.shape(y_predict)
+    num_plots = np.shape(y)[1]
+    for id in range(num_plots):
+        plot_prediction(y[:, id], y_predict[:,id],
+                        name="prediction plot for output dim {}".format(id),
+                        save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
+
+
 if __name__ == "__main__":
-    print("USAGE: FIRST ARGUMENT MUST BE MODEL NAME")
+    print("USAGE: train.py <model_name> <data_type>")
     args = sys.argv
     model_name = args[1]
     data_dir = "/home/abhinavg/data/takktile/data-v1/train/"
-    test_translation(model_name, data_dir, batch_size=32, series_len=50)
+    mode = args[2]
+
+    if mode == "all":
+        test_all(model_name, data_dir, batch_size=32, series_len=100)
+    elif mode == "trans":
+        test_translation(model_name, data_dir, batch_size=32, series_len=100)
+    elif mode == "rot":
+        test_rotation(model_name, data_dir, batch_size=32, series_len=100)
