@@ -225,13 +225,14 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 (self.max_in, self.max_out),
                 (self.min_in, self.min_out))
 
-    def get_inverse_transform(self, input=[], output=[]):
+    def get_inverse_transform(self, inputs=[], outputs=[]):
+        x = []; y = []
         if self.transform_type:
-            x = self.transform[0].inverse_transform(input)
-            y = self.transform[1].inverse_transform(output)
-            return x, y
-        else:
-            return [], []
+            if len(inputs) > 0:
+                x = self.transform[0].inverse_transform(inputs)
+            if len(outputs) > 0:
+                y = self.transform[1].inverse_transform(outputs)
+        return x, y
 
 
     ###########################################
@@ -387,7 +388,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    config = load_yaml('../configs/config.yaml')['data']
+    config = load_yaml('../configs/base_config.yaml')['data']
     dg = takktile_datagenerator(config)
     if dg.empty():
         print("The current Data generator is empty")
@@ -395,8 +396,10 @@ if __name__ == "__main__":
     dir_list = [config['data_home'] + config['train_dir']]
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
-    print("First Batch Comparison")
-    for i in range(len(dg)):
-        print(i)
-        print(np.all(dg[i][0] == dg[i][0]))
-        print(np.all(dg[i][1] == dg[i][1]))
+    x, y = dg[1]
+    print(dg.get_inverse_transform(outputs=y))
+    # print("First Batch Comparison")
+    # for i in range(len(dg)):
+    #     print(i)
+    #     print(np.all(dg[i][0] == dg[i][0]))
+    #     print(np.all(dg[i][1] == dg[i][1]))

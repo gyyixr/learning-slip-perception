@@ -77,10 +77,10 @@ def test_model(model, datagen):
 
     # Train Model
     x_test, y_test = datagen.get_all_batches()
-    # bs = datagen.batch_size
-    y_predict = model.predict(x=x_test)
-    x_test, y_test = datagen.get_inverse_transform(input=x_test, output=y_test)
-    _, y_predict = datagen.get_inverse_transform(output=y_predict)
+    bs = datagen.batch_size
+    y_predict = model.predict(x=x_test, batch_size=bs)
+    _, y_test = datagen.get_inverse_transform(outputs=y_test)
+    _, y_predict = datagen.get_inverse_transform(outputs=y_predict)
 
     return x_test, y_test, y_predict
 
