@@ -31,6 +31,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 import tensorflow as tf
 from DataLoader import takktile_dataloader
+from ConfigUtils import load_yaml
 
 # CONSTANTS
 ALL_VALID = 1
@@ -47,12 +48,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, batch_size=32,
-                       shuffle=True,
-                       dataloaders=[],
-                       data_mode=ALL_VALID,
-                       eval_data=False,
-                       transform = None):
+    def __init__(self, config,
+                       dataloaders=[]):
         """ Init function for takktile data generator
 
         Parameters
@@ -71,21 +68,22 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             SLIP_TRANS - only translation slip in data
             SLIP_ROT - only rotation slip in data
 
-        eval_data: bool
+        eval_data: bool (legacy)
+            indicated whether or not to create validation data from this dataset
 
         """
-        self.batch_size = batch_size
+        self.batch_size = config['batch_size']
         self.dataloaders = dataloaders
         self.num_dl = len(dataloaders)
-        self.shuffle = shuffle
-        self.data_mode = data_mode
-        self.series_len = 0 if self.num_dl == 0 else self.dataloaders[0].series_len
-        self.create_eval_data = eval_data
+        self.shuffle = config['shuffle']
+        self.data_mode = config['slip_filter']
+        self.create_eval_data = config['eval_data']
         self.eval_len = 0
-        self.transform_type = transform
+        self.transform_type = config['data_transform']['type']
+        self.series_len = config['series_len']
+        self.config = config
 
-        if transform:
-            assert transform == 'standard' or transform == 'minmax'
+        assert self.transform_type == 'standard' or self.transform_type == 'minmax'
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -99,45 +97,37 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
     def load_data_from_dir(self,
                            dir_list=[],
-                           series_len=20,
-                           translation=True,
-                           rotation=True):
+                           exclude=[]):
         """
         Recursive function to load data.mat files in directories with
         signature *takktile_* into a dataloader.
 
         Parameters
         ------------
-        directory : str
+        dir_list : list
             the root directory for the takktile data you wish to load
-        series_len : int
-            The length of the input time series
-        translation: bool
-            indicated whether translation speed should be included in the output or not
-        rotation: bool
-            indicated whether rotation speed should be included in the output or not
+        exclude : list
+            list of keywords that dataloaders paths should not contain
         """
         for directory in dir_list:
             if not os.path.isdir(directory):
                 eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
                 return
 
-        self.series_len = series_len
-
         # Read Data from current directory
         while dir_list:
+            # Pop first directory name and create dataloader if its a valid folder
             current_dir = dir_list.pop(0)
+            valid_dir = True
+            for name in exclude:
+                if name in current_dir and valid_dir:
+                    valid_dir = False
             data_file = current_dir + "/data.mat"
-            if os.path.isfile(data_file) and "takktile_" in current_dir:
+            if os.path.isfile(data_file) and "takktile_" in current_dir and valid_dir:
                 self.dataloaders.append(takktile_dataloader(data_dir=current_dir,
-                                                            input_len=series_len,
-                                                            create_hist=False,
-                                                            rotation=rotation,
-                                                            translation=translation))
-                # Uncomment this for saving histograms, also create_hist = true
-                # self.dataloaders[-1].save_slip_hist(directory=current_dir)
+                                                            config=self.config))
 
-            # Find all child directories of takktile data and recursively load them
+            # Find all child directories of current directory and recursively load them
             data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
                     if os.path.isdir(os.path.join(current_dir, o))]
             for d in data_dirs:
@@ -216,7 +206,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.stand_scaler_in.scale_ = self.std_in
 
         self.stand_scaler_out = StandardScaler()
-        self.stand_scaler_out.fit([self.mean_out * 0., self.mean_out * 0.]) # Ouput needs to be ZERO mean
+        if self.config['data_transform']['output_mean_zero']:
+            self.stand_scaler_out.fit([self.mean_out * 0., self.mean_out * 0.]) # Ouput mean should be zero
+        else:
+            self.stand_scaler_out.fit([self.mean_out, self.mean_out])
         self.stand_scaler_out.scale_ = self.std_out
 
         self.__set_data_transform(self.transform_type)
@@ -385,26 +378,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/data-v1"
-    dg = takktile_datagenerator(shuffle=True,
-                                data_mode=ALL_VALID,
-                                eval_data=False,
-                                transform='standard')
+    config = load_yaml('../configs/config.yaml')['data']
+    dg = takktile_datagenerator(config)
     if dg.empty():
         print("The current Data generator is empty")
     # Load data into datagen
-    dir_list = [data_base + "/train/"]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o))and
-                    not ("translation" in o or "coupled" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["rotation" in d for d in dir_list]):
-            break
-    dg.load_data_from_dir(dir_list=dir_list, series_len=100, translation=False)
+    dir_list = [config['data_home'] + config['train_dir']]
+    dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
     print("First Batch Comparison")
     for i in range(len(dg)):

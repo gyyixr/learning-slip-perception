@@ -1,0 +1,58 @@
+# Data config
+data:
+    data_home: /home/abhinavg/data/takktile/data-v1
+    format: mat
+    series_len: 100
+    shuffle: True
+    batch_size: 32
+    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+    eval_data: False # Whether or not to create eval data
+    train_dir: /train/
+    test_dir: /val/
+    output_type: both # translation | rotation | binary | both
+    train_data_exclude: [] # TODO: rename mat_light
+    test_data_exclude: [] # TODO: rename mat_light
+    data_transform:
+        type: standard
+        output_mean_zero: True # This forces the output mean to be 0
+    slip_thresh:
+        speed: 0.1  #m/s
+        angular_speed: 0.5 #rad/s
+        flow: 2.5
+    histogram:
+        create: False
+        slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+        save: False
+
+# Network config
+net:
+    trained: False
+    type: tcn
+    nb_filters: 48
+    kernel_size: 10
+    dilations: [1, 2, 4, 8, 16, 32, 64]
+    nb_stacks: 1
+    return_sequences: False
+    name: tcn_takktile
+    output_layers: [24, 16, 8] # Add the final output size in code
+    padding: causal
+    use_skip_connections: True
+    activation: selu
+
+
+# training config
+training:
+    epochs: 0
+    epochs_complete: 0
+    regression: True
+    dropout_rate: 0.1
+    kernel_initializer: he_normal
+    opt: adam
+    lr: 0.002
+    use_batch_norm: False
+    use_layer_norm: False
+    verbosity: 1 #0: Suppress chatty output
+
+    
+
+

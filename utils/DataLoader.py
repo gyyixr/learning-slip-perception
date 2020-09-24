@@ -38,7 +38,7 @@ FLOW_MODE = "flow"
 
 # Transformation CONSTANTS
 SPEED_SCALE = 1.0
-ANG_SPEED_SCALE = 0.2
+ANG_SPEED_SCALE = 1.0
 PRESSURE_SCALE = 1.0
 PRESSURE_OFFSET = 0
 
@@ -57,11 +57,7 @@ class takktile_dataloader(object):
     """
 
     def __init__(self, data_dir,
-                       input_len = 20,
-                       create_hist=False,
-                       mat_format = True,
-                       rotation=True,
-                       translation=True):
+                       config):
         """
         Parameters
         --------------
@@ -76,19 +72,24 @@ class takktile_dataloader(object):
         translation: bool
             indicated whether translation speed should be included in the output or not
         """
-        self.series_len = input_len
+        self.series_len = config['series_len']
+        self.config = config
 
         # Load Data
-        self.__load_data_dir(data_dir, mat_format)
+        self.__load_data_dir(data_dir, mat_format=config['format']=='mat')
 
         # Set states
-        self.create_hist = create_hist
-        self.get_translation = translation
-        self.get_rotation = rotation
+        self.create_hist = self.config['histogram']['create']
+        self.get_translation = False
+        self.get_rotation = False
+        if config['output_type'] == 'both' or config['output_type'] == 'translation':
+            self.get_translation = True
+        if config['output_type'] == 'both' or config['output_type'] == 'rotation':
+            self.get_rotation = True
 
-        # Set Global Variables
-        self.__speed_thresh = SPEED_THRESH_FLOW if self.__get_mode() == FLOW_MODE \
-                                                else SPEED_THRESH_*SPEED_SCALE
+        # Setparameters
+        self.__speed_thresh = config['slip_thresh']['flow'] if self.__get_mode() == FLOW_MODE \
+                                                else config['slip_thresh']['speed']*SPEED_SCALE
 
         if self.empty():
             eprint("\t\t Not enough data in directory: {}".format(data_dir))
@@ -98,19 +99,26 @@ class takktile_dataloader(object):
         self.__process_data()
 
         # Create histogram
-        if self.create_hist:
-            # # All indices
-            # self.__create_slip_hist(indices=self.get_all_idx())
-            # self.save_slip_hist(dir + "/slip_hist_all.png")
-            # Valid indices
+        if self.create_hist == True:
+            # Which data to use?
+            data_mode = self.config['histogram']['slip_filter']
+            if data_mode == 1:
+                indices = self.get_valid_idx()
+            elif data_mode == 2:
+                indices = self.get_slip_n_rot_idx()
+            elif data_mode == 3:
+                indices = self.get_no_slip_idx()
+            elif data_mode == 4:
+                indices = self.get_slip_idx()
+            elif data_mode == 5:
+                indices = self.get_rot_idx()
+            else:
+                eprint("Unrecognised data mode: {}".format(self.data_mode))
+                raise ValueError("Unrecognised data mode")
+            # Create and save
             self.__create_slip_hist(indices=self.get_valid_idx())
-            # self.save_slip_hist(data_dir)
-            # # Slip stream indices
-            # self.__create_slip_hist(indices=self.get_slip_stream_idx())
-            # self.save_slip_hist(dir + "/slip_hist_slip.png")
-            # # No Slip stream indices
-            # self.__create_slip_hist(indices=self.get_no_slip_stream_idx())
-            # self.save_slip_hist(dir + "/slip_hist_no_slip.png")
+            if self.config['histogram']['save'] == True:
+                self.save_slip_hist(data_dir)
 
     def __getitem__(self, idx):
         """
@@ -454,17 +462,17 @@ class takktile_dataloader(object):
             if self.__is_valid(idx):
                 valid_counter += 1
                 if self.__get_slip_speed(idx) < self.__speed_thresh and \
-                   abs(self.__get_ang_vel(idx)) < self.__speed_thresh:
+                   abs(self.__get_ang_vel(idx)) < self.config['slip_thresh']['angular_speed']:
                     no_slip_counter += 1
                     slip_counter = 0
                     rot_counter = 0
                 elif self.__get_slip_speed(idx) > self.__speed_thresh and \
-                   abs(self.__get_ang_vel(idx)) < self.__speed_thresh:
+                   abs(self.__get_ang_vel(idx)) < self.config['slip_thresh']['angular_speed']:
                     no_slip_counter = 0
                     slip_counter += 1
                     rot_counter = 0
                 elif self.__get_slip_speed(idx) < self.__speed_thresh and \
-                   abs(self.__get_ang_vel(idx)) > self.__speed_thresh:
+                   abs(self.__get_ang_vel(idx)) > self.config['slip_thresh']['angular_speed']:
                     no_slip_counter = 0
                     slip_counter = 0
                     rot_counter += 1

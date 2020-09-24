@@ -1,0 +1,49 @@
+data:
+  batch_size: 32
+  data_home: /home/abhinavg/data/takktile/data-v1
+  data_transform:
+    max: !!python/tuple
+    - [11.0, 19.0, 10.0, 16.0, 20.0, 14.0]
+    - [1.6928240033335171, 1.7532763045894104, 5.624724264037915]
+    mean: !!python/tuple
+    - [-62.76699773985527, -45.41375163290273, -78.15460219379186, -84.08663196964356,
+      -41.53834988699276, -70.99630912144649]
+    - [-0.0031589396574340845, 0.001023411931435203, 0.01202044296714939]
+    min: !!python/tuple
+    - [-474.0, -428.0, -462.0, -400.0, -319.0, -431.0]
+    - [-1.864242573497031, -1.2430849412811986, -5.011796147919821]
+    output_mean_zero: true
+    std: !!python/tuple
+    - [65.25354985619519, 42.19120706292791, 73.77313357617288, 88.24223066986845,
+      45.3749332015287, 77.22565908231819]
+    - [0.44711133983985074, 0.2541760894635816, 1.317897767081284]
+    type: standard
+  eval_data: false
+  format: mat
+  histogram: {create: false, save: false, slip_filter: 1}
+  output_type: both
+  series_len: 100
+  shuffle: true
+  slip_filter: 1
+  slip_thresh: {angular_speed: 0.5, flow: 2.5, speed: 0.1}
+  test_data_exclude: []
+  test_dir: /val/
+  train_data_exclude: []
+  train_dir: /train/
+net:
+  activation: selu
+  dilations: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+  kernel_size: 10
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20200922-173803_all_all_standard_selu_100_0-1_200
+  name: tcn_takktile
+  nb_filters: 48
+  nb_stacks: 1
+  output_layers: [24, 16, 8, 2]
+  padding: causal
+  return_sequences: false
+  trained: true
+  type: tcn
+  use_skip_connections: true
+training: {dropout_rate: 0.1, epochs: 200, epochs_complete: 200, kernel_initializer: he_normal,
+  lr: 0.002, opt: adam, regression: true, use_batch_norm: false, use_layer_norm: false,
+  verbosity: 1}

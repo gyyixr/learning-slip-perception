@@ -26,17 +26,18 @@ import numpy as np
 import sys
 from datetime import datetime
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 import tensorflow as tf
 from tensorflow import keras
 
 from nets import compiled_tcn, tcn_full_summary
-from utils import takktile_datagenerator
+from utils import takktile_datagenerator, load_yaml
 
 #CONSTANTS
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
-MODELS_DIR = "./logs/models/"
-PLOTS_DIR = "./logs/plots/"
+CWD = os.path.dirname(os.path.realpath(__file__))
+PLOTS_DIR = CWD + "/logs/plots"
 
 def plot_prediction(true, predict,
                     axes=["true", "predicted"],
@@ -80,34 +81,37 @@ def test_model(model, datagen):
     return x_test, y_test, y_predict
 
 
-def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
+def test_tcn(config):
     """
-        Translation only training using translation dominant data which has been filtered to
-        only include data points with high translation velocity and low rotation velocity
+        Test tcn network based on the config provided
     """
+    data_config = config['data']
+    network_config = config['net']
+
     # Create datagenerator
-    datagen_test = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_TRANS,
-                                           eval_data=False,
-                                           transform='standard')
+    datagen_test = takktile_datagenerator(data_config)
+
     # Load data into datagen
-    dir_list = [test_data_dir]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o)) and
-                    not ("rotation" in o or "coupled" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["translation" in d for d in dir_list]):
-            break
-    datagen_test.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
+    dir_list = [data_config['data_home'] + data_config['test_dir']]
+    datagen_test.load_data_from_dir(dir_list=dir_list, exclude=data_config['test_data_exclude'])
+
+    # Set data transform parameters
+    _mean = data_config['data_transform']['mean']
+    _std = data_config['data_transform']['std']
+    _max = data_config['data_transform']['max']
+    _min = data_config['data_transform']['min']
+    mean_ = (np.array(_mean[0]), np.array(_mean[1]))
+    std_ = (np.array(_std[0]), np.array(_std[1]))
+    max_ = (np.array(_max[0]), np.array(_max[1]))
+    min_ = (np.array(_min[0]), np.array(_min[1]))
+    datagen_test.set_data_attributes(mean_, std_, max_, min_)
 
     # Test the data
-    model = keras.models.load_model(MODELS_DIR + model_name)
-    x, y, y_predict = test_model(model, datagen_test)
+    if network_config['trained'] == True:
+        model = keras.models.load_model(network_config['model_dir'])
+        x, y, y_predict = test_model(model, datagen_test)
+    else:
+        raise ValueError("Cannot test on untrained network")
 
     # plot test data
     assert np.shape(y) == np.shape(y_predict)
@@ -115,83 +119,15 @@ def test_translation(model_name, test_data_dir, batch_size=32, series_len=20):
     for id in range(num_plots):
         plot_prediction(y[:, id], y_predict[:,id],
                         name="prediction plot for output dim {}".format(id),
-                        save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
+                        save_location= network_config['model_dir'] + "/true_vs_pred_{}.png".format(id))
 
-
-def test_rotation(model_name, test_data_dir, batch_size=32, series_len=20):
-    """
-        Rotation only training using Rotation dominant data which has been filtered to
-        only include data points with high Rotation velocity and low translation velocity
-    """
-    # Create datagenerator
-    datagen_test = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_ROT,
-                                           eval_data=False,
-                                           transform='standard')
-    # Load data into datagen
-    dir_list = [test_data_dir]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o)) and
-                    not ("translation" in o or "coupled" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["rotation" in d for d in dir_list]):
-            break
-    datagen_test.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
-
-    # Test the data
-    model = keras.models.load_model(MODELS_DIR + model_name)
-    x, y, y_predict = test_model(model, datagen_test)
-
-    # plot test data
-    assert np.shape(y) == np.shape(y_predict)
-    num_plots = np.shape(y)[1]
-    for id in range(num_plots):
-        plot_prediction(y[:, id], y_predict[:,id],
-                        name="prediction plot for output dim {}".format(id),
-                        save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
-
-def test_all(model_name, test_data_dir, batch_size=32, series_len=20):
-    """
-        Test on all data
-    """
-    # Create datagenerator
-    datagen_test = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=ALL_VALID,
-                                           eval_data=False,
-                                           transform='standard')
-    # Load data into datagen
-    dir_list = [test_data_dir]
-    datagen_test.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-
-    # Test the data
-    model = keras.models.load_model(MODELS_DIR + model_name)
-    x, y, y_predict = test_model(model, datagen_test)
-
-    # plot test data
-    assert np.shape(y) == np.shape(y_predict)
-    num_plots = np.shape(y)[1]
-    for id in range(num_plots):
-        plot_prediction(y[:, id], y_predict[:,id],
-                        name="prediction plot for output dim {}".format(id),
-                        save_location=PLOTS_DIR + model_name + "_{}.png".format(id))
-
+    print("The mean squares error is: {}".format(mean_squared_error(y, y_predict)))
+    print("The mean absolute error is: {}".format(mean_absolute_error(y, y_predict)))
 
 if __name__ == "__main__":
-    print("USAGE: train.py <model_name> <data_type>")
+    print("USAGE: train.py <config>")
     args = sys.argv
-    model_name = args[1]
-    data_dir = "/home/abhinavg/data/takktile/data-v1/train/"
-    mode = args[2]
+    config = load_yaml(args[1])
 
-    if mode == "all":
-        test_all(model_name, data_dir, batch_size=32, series_len=100)
-    elif mode == "trans":
-        test_translation(model_name, data_dir, batch_size=32, series_len=100)
-    elif mode == "rot":
-        test_rotation(model_name, data_dir, batch_size=32, series_len=100)
+    if config['net']['type'] == 'tcn':
+        test_tcn(config)

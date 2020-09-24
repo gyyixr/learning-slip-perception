@@ -21,6 +21,7 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 #####################
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # This is to suppress TF logs
 import numpy as np
 from datetime import datetime
 
@@ -35,237 +36,102 @@ from utils import takktile_datagenerator, load_yaml, save_yaml
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
-config_dir = CWD + "/configs"
 
-def train_tcn(datagen_train, val_data=()):
+def train_tcn(config):
+    data_config = config['data']
+    network_config = config['net']
+    training_config = config['training']
+
+    # Extract data home
+    data_home = data_config['data_home']
+
+    # Create datagenerator Train
+    datagen_train = takktile_datagenerator(data_config)
+
+    # Load data into datagen
+    dir_list = [data_home + data_config['train_dir']]
+    datagen_train.load_data_from_dir(dir_list=dir_list,
+                                     exclude=data_config['train_data_exclude'])
+
+    # Create datagenerator Val
+    datagen_val = takktile_datagenerator(data_config)
+
+    # Load data into datagen
+    dir_list = [data_home + data_config['test_dir']]
+    datagen_val.load_data_from_dir(dir_list=dir_list,
+                                   exclude=data_config['test_data_exclude'])
+
+    # Load training tranformation
+    mean, std, max_, min_ = datagen_train.get_data_attributes()
+    datagen_val.set_data_attributes(mean, std, max_, min_)
+    data_config['data_transform']['mean'] = (mean[0].tolist(), mean[1].tolist())
+    data_config['data_transform']['std'] = (std[0].tolist(), std[1].tolist())
+    data_config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
+    data_config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
+
     # Get sample output
     test_x, test_y = datagen_train[0]
 
-    # Create TCN model
-    model = compiled_tcn(return_sequences=False,
-                        num_feat=test_x.shape[2],
-                        nb_filters=48,
-                        kernel_size=10,
-                        dilations=[2 ** i for i in range(9)],
-                        nb_stacks=1,
-                        max_len=test_x.shape[1],
-                        use_skip_connections=True,
-                        regression=True,
-                        dropout_rate=0.1,
-                        activation='selu',
-                        opt='adam',
-                        use_batch_norm=False, # TODO: Debug Batch Norm and layer Norm,
-                        use_layer_norm=False,
-                        output_layers=[24, 16, 8, test_y.shape[1]])
+    if network_config['trained'] == True:
+        log_models_dir = network_config['model_dir']
+        model = keras.models.load_model(log_models_dir)
+    else:
+        # Create TCN model
+        output_layers = network_config['output_layers']
+        output_layers.append(test_y.shape[1])
+        model = compiled_tcn(return_sequences= network_config['return_sequences'],
+                            num_feat=          test_x.shape[2],
+                            nb_filters=        network_config['nb_filters'],
+                            kernel_size=       network_config['kernel_size'],
+                            dilations=         network_config['dilations'],
+                            nb_stacks=         network_config['nb_stacks'],
+                            max_len=           test_x.shape[1],
+                            use_skip_connections=network_config['use_skip_connections'],
+                            regression=        training_config['regression'],
+                            dropout_rate=      training_config['dropout_rate'],
+                            activation=        network_config['activation'],
+                            opt=               training_config['opt'],
+                            use_batch_norm=    training_config['use_batch_norm'],
+                            use_layer_norm=    training_config['use_layer_norm'],
+                            lr=                training_config['lr'],
+                            kernel_initializer=training_config['kernel_initializer'],
+                            output_layers=     output_layers)
     tcn_full_summary(model)
+    log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+    network_config['model_dir'] = log_models_dir
 
     # Create Tensorboard callback
     log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-    log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
 
     # Train Model
-    model.fit(x=datagen_train,
-              verbose=1, #0: Suppress chatty output; use Tensorboard instead
-              epochs=100,
-              callbacks=[tensorboard_callback],
-              # MultiProcessing options
-              max_queue_size=10,
-              use_multiprocessing=False,
-              workers=1,
-              validation_data=val_data)
+    epochs = int(training_config['epochs'] - training_config['epochs_complete'])
+    if epochs > 0:
+        model.fit(x=datagen_train,
+                  verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
+                  epochs=epochs,
+                  callbacks=[tensorboard_callback],
+                  validation_data=datagen_val.get_all_batches())
+    else:
+        print("Network has been trained to {} epochs".format(training_config['epochs']))
+        print("No more training Required")
+    network_config['trained'] = True
+    training_config['epochs_complete'] = training_config['epochs']
 
+    # Save Model
     model.save(filepath=log_models_dir,
                overwrite=True,
                include_optimizer=True)
 
-    # Delete all variables
-    del test_x, test_y, model
-
-def train_tcn_all(data_home, batch_size=32, series_len=20):
-    """
-        Train for both rotation and translation velocity using all the valid data
-    """
-    # Create datagenerator Train
-    datagen_train = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=ALL_VALID,
-                                           eval_data=False,
-                                           transform='standard')
-
-    # Load data into datagen
-    dir_list = [data_home + "/train/"]
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-
-    # Create datagenerator Val
-    datagen_val = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=ALL_VALID,
-                                           eval_data=False,
-                                           transform='standard')
-
-    # Load data into datagen
-    dir_list = [data_home + "/val/"]
-    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-
-    # Load training tranformation
-    a,b,c,d = datagen_train.get_data_attributes()
-    datagen_val.set_data_attributes(a,b,c,d)
-
-    # Start Training
-    train_tcn(datagen_train, datagen_val.get_all_batches())
+    # Preserve config
+    save_yaml(config, log_models_dir + "/config.yaml")
 
     # Delete all variables
-    del datagen_train, datagen_val, dir_list
-
-def train_tcn_translation(data_home, batch_size=32, series_len=20):
-    """
-        Translation only training using translation dominant data which has been filtered to
-        only include data points with high translation velocity and low rotation velocity
-    """
-    # Create datagenerator
-    datagen_train = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_TRANS,
-                                           eval_data=False,
-                                           transform='standard')
-    # Load data into datagen
-    dir_list = [data_home + "/train/"]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o)) and
-                    not ("rotation" in o or "coupled" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["translation" in d for d in dir_list]):
-            break
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
-
-    # Create datagenerator Val
-    datagen_val = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_TRANS,
-                                           eval_data=False,
-                                           transform='standard')
-
-    # Load data into datagen
-    dir_list = [data_home + "/val/"]
-    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, rotation=False)
-
-    # Load training tranformation
-    a,b,c,d = datagen_train.get_data_attributes()
-    datagen_val.set_data_attributes(a,b,c,d)
-
-    # Start Training
-    train_tcn(datagen_train, datagen_val.get_all_batches())
-
-    # Delete all variables
-    del datagen_train, datagen_val, dir_list
-
-def train_tcn_rotation(data_home, batch_size=32, series_len=20):
-    """
-        Rotation only training using rotation dominant data which has been filtered to
-        only include data points with high rotation velocity and low translation velocity
-    """
-    # Create datagenerator
-    datagen_train = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_ROT,
-                                           eval_data=False,
-                                           transform='standard')
-    # Load data into datagen
-    dir_list = [data_home + "/train/"]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o))and
-                    not ("translation" in o or "coupled" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["rotation" in d for d in dir_list]):
-            break
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
-
-    # Create datagenerator Val
-    datagen_val = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=SLIP_ROT,
-                                           eval_data=False,
-                                           transform='standard')
-
-    # Load data into datagen
-    dir_list = [data_home + "/val/"]
-    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len, translation=False)
-
-    # Load training tranformation
-    a,b,c,d = datagen_train.get_data_attributes()
-    datagen_val.set_data_attributes(a,b,c,d)
-
-    # Start Training
-    train_tcn(datagen_train, datagen_val.get_all_batches())
-
-    # Delete all variables
-    del datagen_train, datagen_val, dir_list
-
-
-def train_tcn_coupled(data_home, batch_size=32, series_len=20):
-    # Create datagenerator
-    datagen_train = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=ALL_VALID,
-                                           eval_data=False,
-                                           transform='standard')
-    # Load data into datagen
-    dir_list = [data_home + "/train/"]
-    while dir_list:
-        current_dir = dir_list.pop(0)
-
-        # Find all child directories of takktile data and recursively load them
-        data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
-                     if os.path.isdir(os.path.join(current_dir, o))and
-                    not ("rotation" in o or "translation" in o)]
-        for d in data_dirs:
-            dir_list.append(d)
-        if all(["coupled" in d for d in dir_list]):
-            break
-    datagen_train.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-
-    # Create datagenerator Val
-    datagen_val = takktile_datagenerator(batch_size=batch_size,
-                                           shuffle=True,
-                                           data_mode=ALL_VALID,
-                                           eval_data=False,
-                                           transform='standard')
-
-    # Load data into datagen
-    dir_list = [data_home + "/val/"]
-    datagen_val.load_data_from_dir(dir_list=dir_list, series_len=series_len)
-
-    # Load training tranformation
-    a,b,c,d = datagen_train.get_data_attributes()
-    datagen_val.set_data_attributes(a,b,c,d)
-
-    # Start Training
-    train_tcn(datagen_train, datagen_val.get_all_batches())
-
-    # Delete all variables
-    del datagen_train, datagen_val, dir_list
+    del datagen_train, datagen_val, test_x, test_y, model
 
 if __name__ == "__main__":
-    mode = sys.argv[1]
+    print("Usage:  train.py <name of yaml config file>")
+    config = load_yaml(sys.argv[1])
 
-    if mode == "all":
-        train_tcn_all(data_home = "/home/abhinavg/data/takktile/data-v1",
-                    batch_size=32,
-                    series_len=100)
-    elif mode == "trans":
-        train_tcn_translation(data_home = "/home/abhinavg/data/takktile/data-v1",
-                    batch_size=32,
-                    series_len=100)
-    elif mode == "rot":
-        train_tcn_rotation(data_home = "/home/abhinavg/data/takktile/data-v1",
-                    batch_size=32,
-                    series_len=100)
+    if config['net']['type'] == 'tcn':
+        train_tcn(config)

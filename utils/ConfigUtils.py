@@ -24,6 +24,7 @@ def eprint(*args, **kwargs):
 # Standard Imports
 import yaml
 import os
+CWD = os.path.dirname(os.path.realpath(__file__))
 
 def load_yaml(yaml_file):
     if not file:
@@ -56,18 +57,19 @@ def save_yaml(dict_, yaml_file):
 
 if __name__ == "__main__":
     # Test Loading
-    config = load_yaml('./test.yaml')
+    config = load_yaml(CWD + '/test.yaml')
     section1 = config['section1']
     
     # Test Types
     print(section1['param1'])
-    print(section1['param2'])
+    print(section1['param2']['param3'] == False)
     print(section1['list_float'])
     print(section1['list_int'])
     print(section1['list'])
 
     # Test saving new file
-    section1['new_param'] = ['1', '2', '3']
+    import numpy as np
+    section1['param2']['new_param'] = ([0.1, 0.2], [9.0])
     save_yaml(config, './new_test.yaml')
     new_config = load_yaml('./new_test.yaml')
     print(new_config['section1'])
