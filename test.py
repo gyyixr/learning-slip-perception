@@ -75,8 +75,8 @@ def test_model(model, datagen):
 
     # Train Model
     x_test, y_test = datagen.get_all_batches()
-    bs = datagen.batch_size
-    y_predict = model.predict(x=x_test, batch_size=bs)
+    # bs = datagen.batch_size
+    y_predict = model.predict(x=x_test)
 
     return x_test, y_test, y_predict
 
@@ -89,21 +89,25 @@ def test_tcn(config):
     network_config = config['net']
 
     # Create datagenerator
+    datagen_train = takktile_datagenerator(data_config)
     datagen_test = takktile_datagenerator(data_config)
 
     # Load data into datagen
+    dir_list = [data_config['data_home'] + data_config['train_dir']]
+    datagen_train.load_data_from_dir(dir_list=dir_list, exclude=data_config['train_data_exclude'])
     dir_list = [data_config['data_home'] + data_config['test_dir']]
     datagen_test.load_data_from_dir(dir_list=dir_list, exclude=data_config['test_data_exclude'])
 
     # Set data transform parameters
-    _mean = data_config['data_transform']['mean']
-    _std = data_config['data_transform']['std']
-    _max = data_config['data_transform']['max']
-    _min = data_config['data_transform']['min']
-    mean_ = (np.array(_mean[0]), np.array(_mean[1]))
-    std_ = (np.array(_std[0]), np.array(_std[1]))
-    max_ = (np.array(_max[0]), np.array(_max[1]))
-    min_ = (np.array(_min[0]), np.array(_min[1]))
+    # _mean = data_config['data_transform']['mean']
+    # _std = data_config['data_transform']['std']
+    # _max = data_config['data_transform']['max']
+    # _min = data_config['data_transform']['min']
+    # mean_ = (np.array(_mean[0]), np.array(_mean[1]))
+    # std_ = (np.array(_std[0]), np.array(_std[1]))
+    # max_ = (np.array(_max[0]), np.array(_max[1]))
+    # min_ = (np.array(_min[0]), np.array(_min[1]))
+    mean_, std_, max_, min_ = datagen_train.get_data_attributes()
     datagen_test.set_data_attributes(mean_, std_, max_, min_)
 
     # Test the data

@@ -225,6 +225,15 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 (self.max_in, self.max_out),
                 (self.min_in, self.min_out))
 
+    def get_inverse_transform(self, input=[], output=[]):
+        if self.transform_type:
+            x = self.transform[0].inverse_transform(input)
+            y = self.transform[1].inverse_transform(output)
+            return x, y
+        else:
+            return [], []
+
+
     ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################

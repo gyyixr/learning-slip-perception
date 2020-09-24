@@ -24,9 +24,12 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # This is to suppress TF logs
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow import keras
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, tcn_full_summary
 from utils import takktile_datagenerator, load_yaml, save_yaml
@@ -36,6 +39,50 @@ from utils import takktile_datagenerator, load_yaml, save_yaml
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
+
+
+def plot_prediction(true, predict,
+                    axes=["true", "predicted"],
+                    name="true vs predicted",
+                    save_location=""):
+    """
+        Plotting function to plot true vs predicted value plot
+        if save_location is empty, do not save and only show
+    """
+    assert len(true) == len(predict)
+
+    plot = plt.figure(figsize=(10, 10))
+    plt.scatter(true, predict)
+    plt.title(name)
+    plt.xlabel(axes[0])
+    plt.ylabel(axes[1])
+    plt.axis('equal')
+    plt.grid(True)
+
+    # Equal Plot
+    line = np.linspace(np.min(true), np.max(true), 100)
+    plt.plot(line, line, 'r')
+
+    if not save_location:
+        plt.show(plot)
+    else:
+        assert ".png" in save_location
+        plot.savefig(save_location, dpi=plot.dpi)
+
+
+def test_model(model, datagen):
+    if not model:
+        eprint("Cannot Evaluate without a model")
+        raise ValueError("model cannot be none")
+
+    # Train Model
+    x_test, y_test = datagen.get_all_batches()
+    # bs = datagen.batch_size
+    y_predict = model.predict(x=x_test)
+    x_test, y_test = datagen.get_inverse_transform(input=x_test, output=y_test)
+    _, y_predict = datagen.get_inverse_transform(output=y_predict)
+
+    return x_test, y_test, y_predict
 
 def train_tcn(config):
     data_config = config['data']
@@ -49,16 +96,16 @@ def train_tcn(config):
     datagen_train = takktile_datagenerator(data_config)
 
     # Load data into datagen
-    dir_list = [data_home + data_config['train_dir']]
-    datagen_train.load_data_from_dir(dir_list=dir_list,
+    dir_list_train = [data_home + data_config['train_dir']]
+    datagen_train.load_data_from_dir(dir_list=dir_list_train,
                                      exclude=data_config['train_data_exclude'])
 
     # Create datagenerator Val
     datagen_val = takktile_datagenerator(data_config)
 
     # Load data into datagen
-    dir_list = [data_home + data_config['test_dir']]
-    datagen_val.load_data_from_dir(dir_list=dir_list,
+    dir_list_val = [data_home + data_config['test_dir']]
+    datagen_val.load_data_from_dir(dir_list=dir_list_val,
                                    exclude=data_config['test_data_exclude'])
 
     # Load training tranformation
@@ -69,11 +116,15 @@ def train_tcn(config):
     data_config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
     data_config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
 
+    val_data = datagen_val.get_all_batches()
+
     # Get sample output
     test_x, test_y = datagen_train[0]
 
     if network_config['trained'] == True:
+        # Load Model
         log_models_dir = network_config['model_dir']
+        log_scalers = training_config['log_scaler_dir']
         model = keras.models.load_model(log_models_dir)
     else:
         # Create TCN model
@@ -96,12 +147,13 @@ def train_tcn(config):
                             lr=                training_config['lr'],
                             kernel_initializer=training_config['kernel_initializer'],
                             output_layers=     output_layers)
+        log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+        network_config['model_dir'] = log_models_dir
+        training_config['log_scaler_dir'] = log_scalers
     tcn_full_summary(model)
-    log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
-    network_config['model_dir'] = log_models_dir
 
     # Create Tensorboard callback
-    log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
 
     # Train Model
@@ -111,17 +163,34 @@ def train_tcn(config):
                   verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
                   epochs=epochs,
                   callbacks=[tensorboard_callback],
-                  validation_data=datagen_val.get_all_batches())
+                  validation_data=(val_data[0], val_data[1]))
     else:
         print("Network has been trained to {} epochs".format(training_config['epochs']))
         print("No more training Required")
     network_config['trained'] = True
     training_config['epochs_complete'] = training_config['epochs']
 
+    # test on validation data again
+    x, y, y_predict = test_model(model, datagen_val)
+    print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2])))
+    print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2])))
+    print("Cosine similarity for velocity is: {}".format(cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
+
+    print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y[:, 2], y_predict[:, 2])))
+    print("The mean absolute velocity error is: {} rad/s".format(mean_absolute_error(y[:, 2], y_predict[:, 2])))
+
     # Save Model
     model.save(filepath=log_models_dir,
                overwrite=True,
                include_optimizer=True)
+
+    # plot test data
+    assert np.shape(y) == np.shape(y_predict)
+    num_plots = np.shape(y)[1]
+    for id in range(num_plots):
+        plot_prediction(y[:, id], y_predict[:,id],
+                        name="prediction plot for output dim {}".format(id),
+                        save_location=log_models_dir + "/true_vs_pred_{}.png".format(id))
 
     # Preserve config
     save_yaml(config, log_models_dir + "/config.yaml")

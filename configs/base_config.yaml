@@ -13,7 +13,7 @@ data:
     train_data_exclude: [] # TODO: rename mat_light
     test_data_exclude: [] # TODO: rename mat_light
     data_transform:
-        type: standard
+        type: minmax
         output_mean_zero: True # This forces the output mean to be 0
     slip_thresh:
         speed: 0.1  #m/s
@@ -42,7 +42,7 @@ net:
 
 # training config
 training:
-    epochs: 0
+    epochs: 100
     epochs_complete: 0
     regression: True
     dropout_rate: 0.1
@@ -53,6 +53,6 @@ training:
     use_layer_norm: False
     verbosity: 1 #0: Suppress chatty output
 
-    
+
 
 
