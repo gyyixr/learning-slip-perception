@@ -38,7 +38,7 @@ net:
   name: tcn_takktile
   nb_filters: 48
   nb_stacks: 1
-  output_layers: [24, 16, 8, 2]
+  output_layers: [24, 16, 8]
   padding: causal
   return_sequences: false
   trained: true

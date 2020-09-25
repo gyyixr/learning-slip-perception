@@ -40,6 +40,18 @@ from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
 
+def mean_cosine_similarity(X, Y):
+    if not np.shape(X) == np.shape(Y):
+        eprint("Array shapes are different: {} | {}".format(np.shape(X), np.shape(Y)))
+        return 0.0
+    
+    total_sim = 0.0
+    for i in range(np.shape(X)[0]//2):
+        total_sim += np.mean(np.diag(cosine_similarity(X[2*i : 2*i+2, :], Y[2*i : 2*i+2, :])))
+
+    return total_sim/(np.shape(X)[0]//2)
+
+
 
 def plot_prediction(true, predict,
                     axes=["true", "predicted"],
@@ -128,7 +140,7 @@ def train_tcn(config):
         model = keras.models.load_model(log_models_dir)
     else:
         # Create TCN model
-        output_layers = network_config['output_layers']
+        output_layers = network_config['output_layers'][:]
         output_layers.append(test_y.shape[1])
         model = compiled_tcn(return_sequences= network_config['return_sequences'],
                             num_feat=          test_x.shape[2],
@@ -157,7 +169,7 @@ def train_tcn(config):
     tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
 
     # Train Model
-    epochs = int(training_config['epochs'] - training_config['epochs_complete'])
+    epochs = int(training_config['epochs'])
     if epochs > 0:
         model.fit(x=datagen_train,
                   verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
@@ -168,13 +180,13 @@ def train_tcn(config):
         print("Network has been trained to {} epochs".format(training_config['epochs']))
         print("No more training Required")
     network_config['trained'] = True
-    training_config['epochs_complete'] = training_config['epochs']
+    training_config['epochs_complete'] += epochs
 
     # test on validation data again
     x, y, y_predict = test_model(model, datagen_val)
     print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2])))
     print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2])))
-    print("Cosine similarity for velocity is: {}".format(cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
+    print("Cosine similarity for velocity is: {}".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
 
     print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y[:, 2], y_predict[:, 2])))
     print("The mean absolute velocity error is: {} rad/s".format(mean_absolute_error(y[:, 2], y_predict[:, 2])))
@@ -188,9 +200,10 @@ def train_tcn(config):
     assert np.shape(y) == np.shape(y_predict)
     num_plots = np.shape(y)[1]
     for id in range(num_plots):
-        plot_prediction(y[:, id], y_predict[:,id],
+        plot_prediction(y[:, id], y_predict[:, id],
                         name="prediction plot for output dim {}".format(id),
-                        save_location=log_models_dir + "/true_vs_pred_{}.png".format(id))
+                        save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
+                            .format( training_config['epochs_complete'], id))
 
     # Preserve config
     save_yaml(config, log_models_dir + "/config.yaml")

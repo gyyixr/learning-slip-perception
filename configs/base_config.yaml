@@ -30,7 +30,7 @@ net:
     type: tcn
     nb_filters: 48
     kernel_size: 10
-    dilations: [1, 2, 4, 8, 16, 32, 64]
+    dilations: [1, 2, 4, 8, 16, 32, 64, 64, 64]
     nb_stacks: 1
     return_sequences: False
     name: tcn_takktile
@@ -42,7 +42,7 @@ net:
 
 # training config
 training:
-    epochs: 100
+    epochs: 0 # How many epochs to train for
     epochs_complete: 0
     regression: True
     dropout_rate: 0.1
