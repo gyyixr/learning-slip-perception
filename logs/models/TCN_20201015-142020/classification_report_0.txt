@@ -1,0 +1,13 @@
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0       0.35      0.24      0.28      2938
+           1       0.61      0.72      0.66      4742
+
+   micro avg       0.54      0.54      0.54      7680
+   macro avg       0.48      0.48      0.47      7680
+weighted avg       0.51      0.54      0.52      7680
+This is the confusion matrix: 
+ P0 |  P1 
+[[ 705 2233]
+ [1317 3425]]
