@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow import keras
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, classification_report, confusion_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, tcn_full_summary
@@ -44,7 +44,7 @@ def mean_cosine_similarity(X, Y):
     if not np.shape(X) == np.shape(Y):
         eprint("Array shapes are different: {} | {}".format(np.shape(X), np.shape(Y)))
         return 0.0
-    
+
     total_sim = 0.0
     for i in range(np.shape(X)[0]//2):
         total_sim += np.mean(np.diag(cosine_similarity(X[2*i : 2*i+2, :], Y[2*i : 2*i+2, :])))
@@ -105,7 +105,7 @@ def train_tcn(config):
     data_home = data_config['data_home']
 
     # Create datagenerator Train
-    datagen_train = takktile_datagenerator(data_config)
+    datagen_train = takktile_datagenerator(config=data_config)
 
     # Load data into datagen
     dir_list_train = [data_home + data_config['train_dir']]
@@ -113,7 +113,7 @@ def train_tcn(config):
                                      exclude=data_config['train_data_exclude'])
 
     # Create datagenerator Val
-    datagen_val = takktile_datagenerator(data_config)
+    datagen_val = takktile_datagenerator(config=data_config)
 
     # Load data into datagen
     dir_list_val = [data_home + data_config['test_dir']]
@@ -132,6 +132,8 @@ def train_tcn(config):
 
     # Get sample output
     test_x, test_y = datagen_train[0]
+    print(np.shape(test_x))
+    print(np.shape(test_y))
 
     if network_config['trained'] == True:
         # Load Model
@@ -184,26 +186,51 @@ def train_tcn(config):
 
     # test on validation data again
     x, y, y_predict = test_model(model, datagen_val)
-    print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2])))
-    print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2])))
-    print("Cosine similarity for velocity is: {}".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
-
-    print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y[:, 2], y_predict[:, 2])))
-    print("The mean absolute velocity error is: {} rad/s".format(mean_absolute_error(y[:, 2], y_predict[:, 2])))
 
     # Save Model
     model.save(filepath=log_models_dir,
                overwrite=True,
                include_optimizer=True)
 
-    # plot test data
-    assert np.shape(y) == np.shape(y_predict)
-    num_plots = np.shape(y)[1]
-    for id in range(num_plots):
-        plot_prediction(y[:, id], y_predict[:, id],
-                        name="prediction plot for output dim {}".format(id),
-                        save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
-                            .format( training_config['epochs_complete'], id))
+    # Metrics
+    if data_config['label_type'] == 'value':
+        if data_config['label_dimension'] == 'all' or data_config['label_dimension'] == 'translation':
+            print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2])))
+            print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2])))
+            print("Cosine similarity for velocity is: {}".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
+
+        if data_config['label_dimension'] == 'all':
+            print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y[:, 2], y_predict[:, 2])))
+            print("The mean absolute rotation error is: {} rad/s".format(mean_absolute_error(y[:, 2], y_predict[:, 2])))
+            # print("Cosine Similarity for rotation error is: {} ".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2])))
+
+        elif data_config['label_dimension'] == 'rotation':
+            print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y, y_predict)))
+            print("The mean absolute rotation error is: {} rad/s".format(mean_absolute_error(y, y_predict)))
+            # print("Cosine Similarity for rotation error is: {} ".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2])))
+
+        elif data_config['label_dimension'] == 'x' or data_config['label_dimension'] == 'y':
+            print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y, y_predict)))
+            print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y, y_predict)))
+    else:
+        class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
+        cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
+        print("This is the classification report: \n {}".format(class_matrix))
+        print("This is the confusion matrix: \n P0 |  P1 \n {}".format(cf_matrix))
+        with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
+            as text_file:
+            text_file.write("This is the classification report: \n {}".format(class_matrix))
+            text_file.write("This is the confusion matrix: \n P0 |  P1 \n{}".format(cf_matrix))
+
+    if data_config['label_type'] == 'value':
+        # plot test data
+        assert np.shape(y) == np.shape(y_predict)
+        num_plots = np.shape(y)[1]
+        for id in range(num_plots):
+            plot_prediction(y[:, id], y_predict[:, id],
+                            name="prediction plot for output dim {}".format(id),
+                            save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
+                                .format( training_config['epochs_complete'], id))
 
     # Preserve config
     save_yaml(config, log_models_dir + "/config.yaml")

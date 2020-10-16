@@ -1,20 +1,22 @@
 # Data config
 data:
-    data_home: /home/abhinavg/data/takktile/data-v1
+    data_home: /home/abhinavg/data/takktile/data-v3/
     format: mat
     series_len: 100
     shuffle: True
-    batch_size: 32
+    batch_size: 128
     slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
     test_dir: /val/
-    output_type: both # translation | rotation | binary | both
-    train_data_exclude: [] # TODO: rename mat_light
-    test_data_exclude: [] # TODO: rename mat_light
+    label_dimension: x # x | y | rotation | translation | all
+    label_type: slip # slip | direction | value
+    # Note: slip dimension is a binary label and doesn't care about label_type
+    train_data_exclude: [coupled, rotation, combined, y] # TODO: rename mat_light
+    test_data_exclude: [coupled, rotation, combined, y] # TODO: rename mat_light
     data_transform:
-        type: minmax
-        output_mean_zero: True # This forces the output mean to be 0
+        type: standard # standard | minmax
+        output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
         speed: 0.1  #m/s
         angular_speed: 0.5 #rad/s
@@ -28,13 +30,13 @@ data:
 net:
     trained: False
     type: tcn
-    nb_filters: 48
-    kernel_size: 10
-    dilations: [1, 2, 4, 8, 16, 32, 64, 64, 64]
+    nb_filters: 24
+    kernel_size: 8
+    dilations: [1, 2, 4, 8]
     nb_stacks: 1
     return_sequences: False
     name: tcn_takktile
-    output_layers: [24, 16, 8] # Add the final output size in code
+    output_layers: [16, 8] # The final layer size is added by code
     padding: causal
     use_skip_connections: True
     activation: selu
@@ -44,11 +46,11 @@ net:
 training:
     epochs: 0 # How many epochs to train for
     epochs_complete: 0
-    regression: True
-    dropout_rate: 0.1
+    regression: False
+    dropout_rate: 0.2
     kernel_initializer: he_normal
     opt: adam
-    lr: 0.002
+    lr: 0.001
     use_batch_norm: False
     use_layer_norm: False
     verbosity: 1 #0: Suppress chatty output

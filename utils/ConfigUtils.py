@@ -30,7 +30,7 @@ def load_yaml(yaml_file):
     if not file:
         eprint("YAML file not provided: {}".format(yaml_file))
         return
-    
+
     if not os.path.isfile(yaml_file):
         eprint("YAML file does not exists: {}".format(yaml_file))
         raise ValueError
@@ -40,7 +40,44 @@ def load_yaml(yaml_file):
         raise ValueError
 
     input_stream = file(yaml_file, 'r')
-    return yaml.load(input_stream)
+    config = yaml.load(input_stream)
+
+    if not is_config_valid(config):
+        raise ValueError("Invalid Config")
+
+    return config
+
+def is_config_valid(base_config):
+    if not isinstance(base_config, dict):
+        eprint("Provided config is not a dictionary")
+        return False
+
+    if 'data' not in base_config:
+        eprint("Provided config doesnt contain \'data\' key")
+        return False
+    data_config = base_config['data']
+
+    if 'net' not in base_config:
+        eprint("Provided config doesnt contain \'net\' key")
+        return False
+    net_config = base_config['net']
+
+    if 'training' not in base_config:
+        eprint("Provided config doesnt contain \'training\' key")
+        return False
+    training_config = base_config['training']
+
+    ###
+    # CONFIG RULES
+    ###
+
+    # 1. lable_type 'value' must be used with regression, while others cannot be used with regression
+    if (data_config['label_type'] == 'value') != (training_config['regression'] == True):
+        eprint(" lable_type \'value\' must be used with regression, while others cannot be used with regression")
+        return False
+
+    return True
+
 
 def save_yaml(dict_, yaml_file):
     if not '.yaml' in yaml_file:
@@ -53,13 +90,13 @@ def save_yaml(dict_, yaml_file):
 
     output_stream = file(yaml_file, 'w')
     return yaml.dump(dict_, output_stream)
-    
+
 
 if __name__ == "__main__":
     # Test Loading
     config = load_yaml(CWD + '/test.yaml')
     section1 = config['section1']
-    
+
     # Test Types
     print(section1['param1'])
     print(section1['param2']['param3'] == False)

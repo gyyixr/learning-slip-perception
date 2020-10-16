@@ -48,8 +48,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, config,
-                       dataloaders=[]):
+    def __init__(self, config):
         """ Init function for takktile data generator
 
         Parameters
@@ -73,15 +72,15 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
         """
         self.batch_size = config['batch_size']
-        self.dataloaders = dataloaders
-        self.num_dl = len(dataloaders)
+        self.dataloaders = []
+        self.num_dl = 0
         self.shuffle = config['shuffle']
         self.data_mode = config['slip_filter']
         self.create_eval_data = config['eval_data']
         self.eval_len = 0
         self.transform_type = config['data_transform']['type']
         self.series_len = config['series_len']
-        self.config = config
+        self.config = config.copy()
 
         assert self.transform_type == 'standard' or self.transform_type == 'minmax'
 
@@ -388,7 +387,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    config = load_yaml('../configs/base_config.yaml')['data']
+    config = load_yaml("../configs/base_config.yaml")
+    config = config['data']
     dg = takktile_datagenerator(config)
     if dg.empty():
         print("The current Data generator is empty")
@@ -396,10 +396,5 @@ if __name__ == "__main__":
     dir_list = [config['data_home'] + config['train_dir']]
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
-    x, y = dg[1]
-    print(dg.get_inverse_transform(outputs=y))
-    # print("First Batch Comparison")
-    # for i in range(len(dg)):
-    #     print(i)
-    #     print(np.all(dg[i][0] == dg[i][0]))
-    #     print(np.all(dg[i][1] == dg[i][1]))
+    all_b = dg[4]
+    print(np.shape(all_b[1]))

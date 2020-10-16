@@ -27,6 +27,8 @@ import math
 import scipy.io as sio
 import copy
 
+from ConfigUtils import load_yaml
+
 # GLOBAL CONSTANTS
 SPEED_THRESH_FLOW = 2.5                # Relatively tuned (High is strict for slip)
 SPEED_THRESH_ = 0.1
@@ -36,7 +38,7 @@ VICON_MODE = "vicon"
 IMU_MODE = "imu"
 FLOW_MODE = "flow"
 
-# Transformation CONSTANTS
+# Transformation CONSTANTS (Legacy)
 SPEED_SCALE = 1.0
 ANG_SPEED_SCALE = 1.0
 PRESSURE_SCALE = 1.0
@@ -73,19 +75,15 @@ class takktile_dataloader(object):
             indicated whether translation speed should be included in the output or not
         """
         self.series_len = config['series_len']
-        self.config = config
+        self.config = config.copy()
 
         # Load Data
-        self.__load_data_dir(data_dir, mat_format=config['format']=='mat')
+        self.__load_data_dir(data_dir, mat_format=(config['format']=='mat'))
 
         # Set states
         self.create_hist = self.config['histogram']['create']
         self.get_translation = False
         self.get_rotation = False
-        if config['output_type'] == 'both' or config['output_type'] == 'translation':
-            self.get_translation = True
-        if config['output_type'] == 'both' or config['output_type'] == 'rotation':
-            self.get_rotation = True
 
         # Setparameters
         self.__speed_thresh = config['slip_thresh']['flow'] if self.__get_mode() == FLOW_MODE \
@@ -113,10 +111,10 @@ class takktile_dataloader(object):
             elif data_mode == 5:
                 indices = self.get_rot_idx()
             else:
-                eprint("Unrecognised data mode: {}".format(self.data_mode))
+                eprint("Unrecognised data mode: {}".format(data_mode))
                 raise ValueError("Unrecognised data mode")
             # Create and save
-            self.__create_slip_hist(indices=self.get_valid_idx())
+            self.__create_slip_hist(indices=indices)
             if self.config['histogram']['save'] == True:
                 self.save_slip_hist(data_dir)
 
@@ -139,20 +137,8 @@ class takktile_dataloader(object):
                    np.array([self.__get_slip_angle(idx), \
                              self.__get_slip_speed(idx)])
         else:
-            if self.get_translation and self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       np.array([self.__get_slip_dir(idx)[0], \
-                                self.__get_slip_dir(idx)[1], \
-                                self.__get_ang_vel(idx)])
-            elif not self.get_translation and self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       np.array([self.__get_ang_vel(idx)])
-            elif self.get_translation and not self.get_rotation:
-                return self.__get_pressure(ret_list), \
-                       np.array([self.__get_slip_dir(idx)[0], \
-                                self.__get_slip_dir(idx)[1]])
-            else:
-                raise ValueError("translation and rotation cannot be false together")
+            return self.__get_pressure(ret_list), \
+                    self.__get_label(idx=idx)
 
     ###########################################
     #  API FUNCTIONS
@@ -193,20 +179,18 @@ class takktile_dataloader(object):
                    np.array([np.mean(self.__get_slip_angle(all_indices)), \
                              np.mean(self.__get_slip_speed(all_indices))])
         else:
-            if self.get_translation and self.get_rotation:
+            # Collect the labels
+            if self.config['label_type'] == 'value':
+                labels = self.__get_label(all_indices[0])
+                for i in all_indices[1:]:
+                    labels = np.vstack((labels, self.__get_label(i)))
+
                 return np.mean(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.mean(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.mean(self.__get_slip_dir(all_indices)[:, 1]), \
-                                  np.mean(self.__get_ang_vel(all_indices))])
-            elif not self.get_translation and self.get_rotation:
-                return np.mean(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.mean(self.__get_ang_vel(all_indices))])
-            elif self.get_translation and not self.get_rotation:
-                return np.mean(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.mean(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.mean(self.__get_slip_dir(all_indices)[:, 1])])
+                       np.mean(labels, axis=0)
             else:
-                raise ValueError("translation and rotation cannot be false together")
+                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                       np.zeros_like(self.__get_label(all_indices[0]))
+
 
     def get_data_std(self):
         """
@@ -219,20 +203,17 @@ class takktile_dataloader(object):
                     np.array([np.std(self.__get_slip_angle(all_indices)), \
                               np.std(self.__get_slip_speed(all_indices))])
         else:
-            if self.get_translation and self.get_rotation:
+            # Collect the labels
+            if self.config['label_type'] == 'value':
+                labels = self.__get_label(all_indices[0])
+                for i in all_indices[1:]:
+                    labels = np.vstack((labels, self.__get_label(i)))
+
                 return np.std(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.std(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.std(self.__get_slip_dir(all_indices)[:, 1]), \
-                                  np.std(self.__get_ang_vel(all_indices))])
-            elif not self.get_translation and self.get_rotation:
-                return np.std(self.__get_pressure(all_indices), axis=0), \
-                       np.array([np.std(self.__get_ang_vel(all_indices))])
-            elif self.get_translation and not self.get_rotation:
-                return np.std(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.std(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.std(self.__get_slip_dir(all_indices)[:, 1])])
+                       np.std(labels, axis=0)
             else:
-                raise ValueError("translation and rotation cannot be false together")
+                return np.std(self.__get_pressure(all_indices), axis=0), \
+                       np.ones_like(self.__get_label(all_indices[0]))
 
     def get_data_min(self):
         """
@@ -245,20 +226,17 @@ class takktile_dataloader(object):
                     np.array([np.min(self.__get_slip_angle(all_indices)), \
                               np.min(self.__get_slip_speed(all_indices))])
         else:
-            if self.get_translation and self.get_rotation:
+            # Collect the labels
+            if self.config['label_type'] == 'value':
+                labels = self.__get_label(all_indices[0])
+                for i in all_indices[1:]:
+                    labels = np.vstack((labels, self.__get_label(i)))
+
                 return np.min(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.min(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.min(self.__get_slip_dir(all_indices)[:, 1]), \
-                                  np.min(self.__get_ang_vel(all_indices))])
-            elif not self.get_translation and self.get_rotation:
-                return np.min(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.min(self.__get_ang_vel(all_indices))])
-            elif self.get_translation and not self.get_rotation:
-                return np.min(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.min(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.min(self.__get_slip_dir(all_indices)[:, 1])])
+                       np.min(labels, axis=0)
             else:
-                raise ValueError("translation and rotation cannot be false together")
+                return np.min(self.__get_pressure(all_indices), axis=0), \
+                       np.zeros_like(self.__get_label(all_indices[0]))
 
     def get_data_max(self):
         """
@@ -271,20 +249,28 @@ class takktile_dataloader(object):
                     np.array([np.max(self.__get_slip_angle(all_indices)), \
                               np.max(self.__get_slip_speed(all_indices))])
         else:
-            if self.get_translation and self.get_rotation:
+            # Collect the labels
+            if self.config['label_type'] == 'value':
+                labels = self.__get_label(all_indices[0])
+                for i in all_indices[1:]:
+                    labels = np.vstack((labels, self.__get_label(i)))
+
                 return np.max(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.max(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.max(self.__get_slip_dir(all_indices)[:, 1]), \
-                                  np.max(self.__get_ang_vel(all_indices))])
-            elif not self.get_translation and self.get_rotation:
-                return np.max(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.max(self.__get_ang_vel(all_indices))])
-            elif self.get_translation and not self.get_rotation:
-                return np.max(self.__get_pressure(all_indices), axis=0), \
-                        np.array([np.max(self.__get_slip_dir(all_indices)[:, 0]), \
-                                  np.max(self.__get_slip_dir(all_indices)[:, 1])])
+                       np.max(labels, axis=0)
             else:
-                raise ValueError("translation and rotation cannot be false together")
+                return np.max(self.__get_pressure(all_indices), axis=0), \
+                       np.ones_like(self.__get_label(all_indices[0]))
+
+    def plot_pressure(self):
+        all_indices = self.get_all_idx()
+        press = self.__get_pressure(all_indices)
+        time = self.__get_time(all_indices)
+        self.press_plot = plt.figure(figsize=(10,10))
+        plt.plot(time[:500], press[:500,:])
+        plt.xlabel('time')
+        plt.ylabel('pressure')
+        plt.show()
+
 
     def get_mode(self):
         return self.__get_mode()
@@ -410,12 +396,14 @@ class takktile_dataloader(object):
             # Slip Speed Hist
             hist_data = [self.__get_slip_dir(index) / SPEED_SCALE \
                          for index in indices]
+
             self.slip_vel_hist = plt.figure(figsize=(10,10))
             plt.hist2d([d[0] for d in hist_data] , [d[1] for d in hist_data], bins=50)
             t = np.linspace(0,np.pi*2,100)
             plt.plot(self.__speed_thresh*np.cos(t), self.__speed_thresh*np.sin(t), linewidth=1)
-            plt.title("Slip Histogram of {} points\
-                    ".format(len(indices)))
+            num_trans_slip = len(self.get_slip_idx() + self.get_slip_n_rot_idx())
+            plt.title("Slip Histogram of {} indices with {} slip and {} non-slip points\
+                    ".format(len(indices), num_trans_slip, len(indices)-num_trans_slip))
             plt.xlabel('x')
             plt.ylabel('y')
             plt.axis('equal')
@@ -425,8 +413,9 @@ class takktile_dataloader(object):
                          for index in indices]
             self.slip_ang_vel_hist = plt.figure(figsize=(10,10))
             plt.hist(hist_ang_data, bins=100)
-            plt.title("Slip Angular Velocity Histogram of {} points\
-                    ".format(len(indices)))
+            num_rot_slip = len(self.get_rot_idx() + self.get_slip_n_rot_idx())
+            plt.title("Slip Angular Velocity Histogram of {} indices with {} slip and {} non-slip points\
+                    ".format(len(indices), num_rot_slip, len(indices)-num_rot_slip))
             plt.xlabel('Angular Vel rad/s')
             plt.ylabel('Frequency')
 
@@ -539,6 +528,91 @@ class takktile_dataloader(object):
 
         return True
 
+    def booleans_to_categorical(self, b_list):
+        """
+            Input is a list of booleans and the output is a categorical array with
+            a '1' in the corresponding position of the array
+        """
+        _size = len(b_list)
+        class_num = 0
+        ret = np.zeros([2**_size])
+        for i in range(_size):
+            if b_list[i]:
+                class_num += 2**i
+        ret[class_num] = 1
+        return ret
+
+    def __get_label(self, idx):
+        """
+            Return the slip label values based on label type and dimension
+        """
+        if self.__get_mode() == FLOW_MODE:
+            raise ValueError("Cannot use get label in flow mode")
+
+        if self.config['label_type'] == 'value':
+            if self.config['label_dimension'] == 'all':
+                return np.array([self.__get_slip_dir(idx)[0], \
+                                self.__get_slip_dir(idx)[1], \
+                                self.__get_ang_vel(idx)])
+            elif self.config['label_dimension'] == 'translation':
+                return np.array([self.__get_slip_dir(idx)[0], \
+                                self.__get_slip_dir(idx)[1]])
+            elif self.config['label_dimension'] == 'rotation':
+                return np.array([self.__get_ang_vel(idx)])
+            elif self.config['label_dimension'] == 'x':
+                return np.array(self.__get_slip_dir(idx)[0])
+            elif self.config['label_dimension'] == 'y':
+                return np.array(self.__get_slip_dir(idx)[1])
+            else:
+                raise ValueError("Invalid label dimension {}".format(self.config['label_dimension']))
+        # Direction only
+        elif self.config['label_type'] == 'direction':
+            if self.config['label_dimension'] == 'all':
+                return self.booleans_to_categorical(
+                                [self.__get_slip_dir(idx)[0] > 0.0,
+                                self.__get_slip_dir(idx)[1] > 0.0,
+                                self.__get_ang_vel(idx) > 0.0])
+            elif self.config['label_dimension'] == 'translation':
+                return self.booleans_to_categorical(
+                                [self.__get_slip_dir(idx)[0] > 0.0,
+                                self.__get_slip_dir(idx)[1] > 0.0])
+            elif self.config['label_dimension'] == 'rotation':
+                return self.booleans_to_categorical(
+                                [self.__get_ang_vel(idx) > 0.0])
+            elif self.config['label_dimension'] == 'x':
+                return self.booleans_to_categorical(
+                                [self.__get_slip_dir(idx)[0] > 0.0])
+            elif self.config['label_dimension'] == 'y':
+                return self.booleans_to_categorical(
+                                [self.__get_slip_dir(idx)[1] > 0.0])
+            else:
+                raise ValueError("Invalid label dimension {}".format(self.config['label_dimension']))
+        # Slip only
+        elif self.config['label_type'] == 'slip':
+            if self.config['label_dimension'] == 'all':
+                return self.booleans_to_categorical(
+                                [abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed'] or \
+                                abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed'] or \
+                                abs(self.__get_ang_vel(idx)) > self.config['slip_thresh']['angular_speed']])
+            elif self.config['label_dimension'] == 'translation':
+                return self.booleans_to_categorical(
+                                [abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed'] or \
+                                abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed']])
+            elif self.config['label_dimension'] == 'rotation':
+                return self.booleans_to_categorical(
+                                [abs(self.__get_ang_vel(idx)) > self.config['slip_thresh']['angular_speed']])
+            elif self.config['label_dimension'] == 'x':
+                return self.booleans_to_categorical(
+                                [abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed']])
+            elif self.config['label_dimension'] == 'y':
+                return self.booleans_to_categorical(
+                                [abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed']])
+            else:
+                raise ValueError("Invalid label dimension {}".format(self.config['label_dimension']))
+        else:
+            raise ValueError("Invalid label type {}".format(self.config['label_type']))
+
+
     def __get_pressure(self, idx):
         return (self.__data['pressure'][idx] + PRESSURE_OFFSET)/PRESSURE_SCALE
 
@@ -582,13 +656,20 @@ class takktile_dataloader(object):
 
 
 if __name__ == "__main__":
-    data_base = "/home/abhinavg/data/takktile/data-v1/train/takktile_mat/translation"
+    config = load_yaml("../configs/base_config.yaml")
+    config = config['data']
+    data_base = config['data_home']
     data_dirs = [os.path.join(data_base, o) for o in os.listdir(data_base)
                 if os.path.isdir(os.path.join(data_base,o)) and "takktile_" in o ]
     dataloaders = []
     for dir in data_dirs:
-        dataloaders.append(takktile_dataloader(dir, create_hist=True, rotation=True))
+        dataloaders.append(takktile_dataloader(dir, config=config))
         if not dataloaders[-1].empty():
-            print(dataloaders[-1].get_data_mean())
-            print(dataloaders[-1].get_data_std())
+            # print(dataloaders[-1].get_data_mean())
+            # print(dataloaders[-1].get_data_std())
+            # print(dataloaders[-1].get_data_min())
+            # print(dataloaders[-1].get_data_max())
+            # print(dataloaders[-1].get_slip_idx())
+            print(dataloaders[-1][:])
             print("")
+            print(dataloaders[-1].booleans_to_categorical([True]))
