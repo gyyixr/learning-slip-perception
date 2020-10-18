@@ -10,6 +10,9 @@ Developed at UTIAS, Toronto.
 author: Abhinav Grover
 
 date: August 28, 2020
+
+External links:
+    Batch Norm fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
 """
 
 ##################### Error printing
@@ -28,7 +31,8 @@ import matplotlib.pyplot as plt
 
 import tensorflow as tf
 from tensorflow import keras
-from sklearn.metrics import mean_squared_error, mean_absolute_error, classification_report, confusion_matrix
+from sklearn.metrics import mean_squared_error, mean_absolute_error, \
+                            classification_report, confusion_matrix, cohen_kappa_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, tcn_full_summary
@@ -121,12 +125,18 @@ def train_tcn(config):
                                    exclude=data_config['test_data_exclude'])
 
     # Load training tranformation
-    mean, std, max_, min_ = datagen_train.get_data_attributes()
+    if network_config['trained'] == True:
+        mean = data_config['data_transform']['mean']
+        std = data_config['data_transform']['std']
+        max_ = data_config['data_transform']['max']
+        min_ = data_config['data_transform']['min']
+    else:
+        mean, std, max_, min_ = datagen_train.get_data_attributes()
+        data_config['data_transform']['mean'] = (mean[0].tolist(), mean[1].tolist())
+        data_config['data_transform']['std'] = (std[0].tolist(), std[1].tolist())
+        data_config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
+        data_config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
     datagen_val.set_data_attributes(mean, std, max_, min_)
-    data_config['data_transform']['mean'] = (mean[0].tolist(), mean[1].tolist())
-    data_config['data_transform']['std'] = (std[0].tolist(), std[1].tolist())
-    data_config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
-    data_config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
 
     val_data = datagen_val.get_all_batches()
 
@@ -139,7 +149,14 @@ def train_tcn(config):
         # Load Model
         log_models_dir = network_config['model_dir']
         log_scalers = training_config['log_scaler_dir']
-        model = keras.models.load_model(log_models_dir)
+        log_best_model = network_config['best_model_path'] if 'best_model_path' in network_config else log_models_dir
+        if 'use_best_model' in network_config:
+            if network_config['use_best_model'] == True:
+                model = keras.models.load_model(log_best_model)
+            else:
+                model = keras.models.load_model(log_models_dir)
+        else:
+            model = keras.models.load_model(log_models_dir)
     else:
         # Create TCN model
         output_layers = network_config['output_layers'][:]
@@ -161,33 +178,42 @@ def train_tcn(config):
                             lr=                training_config['lr'],
                             kernel_initializer=training_config['kernel_initializer'],
                             output_layers=     output_layers)
-        log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+        log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S") 
         log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-        network_config['model_dir'] = log_models_dir
         training_config['log_scaler_dir'] = log_scalers
+        log_best_model = log_models_dir + "/best_model"
+        network_config['best_model_path'] = log_best_model
     tcn_full_summary(model)
-
-    # Create Tensorboard callback
-    tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
 
     # Train Model
     epochs = int(training_config['epochs'])
     if epochs > 0:
+        # Create Tensorboard callback
+        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
+        model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
+        filepath=log_best_model,
+        save_weights_only=False,
+        monitor='val_categorical_accuracy',
+        mode='max',
+        save_best_only=True)
+
         model.fit(x=datagen_train,
                   verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
                   epochs=epochs,
-                  callbacks=[tensorboard_callback],
+                  callbacks=[tensorboard_callback, model_checkpoint_callback],
                   validation_data=(val_data[0], val_data[1]))
     else:
         print("Network has been trained to {} epochs".format(training_config['epochs']))
         print("No more training Required")
     network_config['trained'] = True
     training_config['epochs_complete'] += epochs
+    training_config['epochs'] = 0
 
     # test on validation data again
     x, y, y_predict = test_model(model, datagen_val)
 
     # Save Model
+    network_config['model_dir'] = log_models_dir
     model.save(filepath=log_models_dir,
                overwrite=True,
                include_optimizer=True)
@@ -215,12 +241,15 @@ def train_tcn(config):
     else:
         class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
         cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
+        ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
         print("This is the classification report: \n {}".format(class_matrix))
-        print("This is the confusion matrix: \n P0 |  P1 \n {}".format(cf_matrix))
+        print("This is the confusion matrix: \n P0 |  P1 \n {}\n".format(cf_matrix))
+        print("This is the cohen Kappa score: \n {}".format(ck_score))
         with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
             as text_file:
             text_file.write("This is the classification report: \n {}".format(class_matrix))
-            text_file.write("This is the confusion matrix: \n P0 |  P1 \n{}".format(cf_matrix))
+            text_file.write("This is the confusion matrix: \n P0 |  P1 \n{}\n".format(cf_matrix))
+            text_file.write("This is the cohen Kappa score: \n {}".format(ck_score))
 
     if data_config['label_type'] == 'value':
         # plot test data

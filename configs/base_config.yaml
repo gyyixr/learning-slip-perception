@@ -51,8 +51,8 @@ training:
     kernel_initializer: he_normal
     opt: adam
     lr: 0.001
-    use_batch_norm: False
-    use_layer_norm: False
+    use_batch_norm: False # Fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
+    use_layer_norm: True
     verbosity: 1 #0: Suppress chatty output
 
 

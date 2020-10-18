@@ -188,6 +188,11 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         assert len(mins) == len(maxs) == 2
         self.min_in, self.min_out = mins
         self.max_in, self.max_out = maxs
+        self.min_in = np.array(self.min_in)
+        self.min_out = np.array(self.min_out)
+        self.max_in = np.array(self.max_in)
+        self.max_out = np.array(self.max_out)
+
 
         self.mm_scaler_in = MinMaxScaler()
         self.mm_scaler_in.fit([self.min_in, self.max_in])
@@ -199,6 +204,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         assert len(means) == len(stds) == 2
         self.mean_in, self.mean_out = means
         self.std_in, self.std_out = stds
+        self.mean_in = np.array(self.mean_in)
+        self.mean_out = np.array(self.mean_out)
+        self.std_in = np.array(self.std_in)
+        self.std_out = np.array(self.std_out)
 
         self.stand_scaler_in = StandardScaler()
         self.stand_scaler_in.fit([self.mean_in, self.mean_in])
