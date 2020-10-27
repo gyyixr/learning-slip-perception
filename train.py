@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 
 """
-train_tcn.py
+train.py
 
 Keras datagenerator file for recorded takktile data
 
@@ -26,6 +26,7 @@ def eprint(*args, **kwargs):
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # This is to suppress TF logs
 import numpy as np
+import select
 from datetime import datetime
 import matplotlib.pyplot as plt
 
@@ -100,7 +101,7 @@ def test_model(model, datagen):
 
     return x_test, y_test, y_predict
 
-def train_tcn(config):
+def train_net(config):
     data_config = config['data']
     network_config = config['net']
     training_config = config['training']
@@ -150,11 +151,8 @@ def train_tcn(config):
         log_models_dir = network_config['model_dir']
         log_scalers = training_config['log_scaler_dir']
         log_best_model = network_config['best_model_path'] if 'best_model_path' in network_config else log_models_dir
-        if 'use_best_model' in network_config:
-            if network_config['use_best_model'] == True:
-                model = keras.models.load_model(log_best_model)
-            else:
-                model = keras.models.load_model(log_models_dir)
+        if network_config['use_best_model'] == True:
+            model = keras.models.load_model(log_best_model)
         else:
             model = keras.models.load_model(log_models_dir)
     else:
@@ -190,18 +188,42 @@ def train_tcn(config):
     if epochs > 0:
         # Create Tensorboard callback
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
+        # Create best model callback (saves the best model based on a metric)
+        if training_config['regression'] == True:
+            best_metric = 'val_loss'
+            mode = 'min'
+        else:
+            best_metric = 'val_categorical_accuracy'
+            mode = 'max'
         model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
-        filepath=log_best_model,
-        save_weights_only=False,
-        monitor='val_categorical_accuracy',
-        mode='max',
-        save_best_only=True)
+                                                        filepath=log_best_model,
+                                                        save_weights_only=False,
+                                                        monitor=best_metric,
+                                                        mode=mode,
+                                                        save_best_only=True)
 
+        # Compute class weights
+        class_weights = []
+        if training_config['regression'] != True and training_config['class_weights'] == True:
+            class_weights = np.sum(datagen_train.class_nums)/ \
+                            (datagen_train.class_nums * len(datagen_train.class_nums))
+            # class_weights = np.ones_like(datagen_train.class_ratios) - datagen_train.class_ratios
+            # class_weights /= np.min(class_weights)
+            class_weights = dict(enumerate(class_weights.tolist()))
+            print("[LOG]: Class Weights being used {}".format(class_weights))
+
+        ###
+        #  THE MAIN LEARNING FUNCTION
+        ###
         model.fit(x=datagen_train,
                   verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
                   epochs=epochs,
                   callbacks=[tensorboard_callback, model_checkpoint_callback],
+                  class_weight=class_weights,
                   validation_data=(val_data[0], val_data[1]))
+        ###
+        # END OF MAIN LEARNING FUNCTION
+        ###
     else:
         print("Network has been trained to {} epochs".format(training_config['epochs']))
         print("No more training Required")
@@ -209,48 +231,68 @@ def train_tcn(config):
     training_config['epochs_complete'] += epochs
     training_config['epochs'] = 0
 
-    # test on validation data again
+    # Test on validation data again
     x, y, y_predict = test_model(model, datagen_val)
 
     # Save Model
     network_config['model_dir'] = log_models_dir
-    model.save(filepath=log_models_dir,
-               overwrite=True,
-               include_optimizer=True)
+    if network_config['save_last_model'] == True:
+        model.save(filepath=log_models_dir,
+                    overwrite=True,
+                    include_optimizer=True)
+    else: # Ask to save the model and wait 30s
+        print("Would you like to save the last trained model? (y/n)")
+        # Wait for 30 seconds for a response
+        i, o, e = select.select( [sys.stdin], [], [], 30)
+        if (i):
+            if sys.stdin.readline().strip() == 'y':
+                model.save(filepath=log_models_dir,
+                        overwrite=True,
+                        include_optimizer=True)
+            else:
+                print("\n\nWARNING: Last model not saved\n\n")
+        else:
+            print("\n\nWARNING: Last model not saved\n\n")
 
     # Metrics
+    print_string = ""
     if data_config['label_type'] == 'value':
         if data_config['label_dimension'] == 'all' or data_config['label_dimension'] == 'translation':
-            print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2])))
-            print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2])))
-            print("Cosine similarity for velocity is: {}".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2])))
+            print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2]))
+            print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2]))
+            print_string += "Cosine similarity for velocity is: {}\n".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2]))
 
         if data_config['label_dimension'] == 'all':
-            print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y[:, 2], y_predict[:, 2])))
-            print("The mean absolute rotation error is: {} rad/s".format(mean_absolute_error(y[:, 2], y_predict[:, 2])))
-            # print("Cosine Similarity for rotation error is: {} ".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2])))
+            print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y[:, 2], y_predict[:, 2]))
+            print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y[:, 2], y_predict[:, 2]))
+            # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
 
         elif data_config['label_dimension'] == 'rotation':
-            print("The mean squares rotation error is: {} rad^2/s^s".format(mean_squared_error(y, y_predict)))
-            print("The mean absolute rotation error is: {} rad/s".format(mean_absolute_error(y, y_predict)))
-            # print("Cosine Similarity for rotation error is: {} ".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2])))
+            print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y, y_predict))
+            print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y, y_predict))
+            # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
 
         elif data_config['label_dimension'] == 'x' or data_config['label_dimension'] == 'y':
-            print("The mean squares velocity error is: {} m^2/s^2".format(mean_squared_error(y, y_predict)))
-            print("The mean absolute velocity error is: {} m/s ".format(mean_absolute_error(y, y_predict)))
+            print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y, y_predict))
+            print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y, y_predict))
+        with open(log_models_dir + "/regression_report_{}.txt".format( training_config['epochs_complete']), "w") \
+            as text_file:
+            text_file.write(print_string)
     else:
         class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
         cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
         ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
-        print("This is the classification report: \n {}".format(class_matrix))
-        print("This is the confusion matrix: \n P0 |  P1 \n {}\n".format(cf_matrix))
-        print("This is the cohen Kappa score: \n {}".format(ck_score))
+        print_string += "data: {}\n".format(data_config['data_home'])
+        print_string += "exclude: {}\n".format(data_config['test_data_exclude'])
+        print_string += "This is the classification report: \n {}\n".format(class_matrix)
+        print_string += "This is the confusion matrix: \n P0 |  P1 \n {}\n".format(cf_matrix)
+        print_string += "This is the cohen Kappa score: \n {}".format(ck_score)
         with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
             as text_file:
-            text_file.write("This is the classification report: \n {}".format(class_matrix))
-            text_file.write("This is the confusion matrix: \n P0 |  P1 \n{}\n".format(cf_matrix))
-            text_file.write("This is the cohen Kappa score: \n {}".format(ck_score))
+            text_file.write(print_string)
+    print(print_string)
 
+    # Prediction plots
     if data_config['label_type'] == 'value':
         # plot test data
         assert np.shape(y) == np.shape(y_predict)
@@ -272,4 +314,4 @@ if __name__ == "__main__":
     config = load_yaml(sys.argv[1])
 
     if config['net']['type'] == 'tcn':
-        train_tcn(config)
+        train_net(config)

@@ -1,0 +1,53 @@
+data:
+  batch_size: 128
+  data_home: /home/abhinavg/data/takktile/data-v3/
+  data_transform:
+    max: !!python/tuple
+    - [44.0, 43.0, 78.0, 28.0, 56.0, 23.0]
+    - [1.0, 1.0]
+    mean: !!python/tuple
+    - [-60.92705638903259, -54.362648732540094, -47.84650062818712, -30.506343458231715,
+      -18.60872564235213, -62.468060995738185]
+    - [0.0, 0.0]
+    min: !!python/tuple
+    - [-494.0, -449.0, -494.0, -457.0, -347.0, -468.0]
+    - [0.0, 0.0]
+    output_mean_zero: true
+    std: !!python/tuple
+    - [79.56643609068611, 69.54350775978085, 87.84611336631632, 45.95296865999519,
+      45.045639733931786, 82.02902438497631]
+    - [1.0, 1.0]
+    type: standard
+  eval_data: false
+  format: mat
+  histogram: {create: false, save: false, slip_filter: 1}
+  label_dimension: x
+  label_type: slip
+  series_len: 100
+  shuffle: true
+  slip_filter: 1
+  slip_thresh: {angular_speed: 0.5, flow: 2.5, speed: 0.1}
+  test_data_exclude: [coupled, rotation, combined, y, matt, mat]
+  test_dir: /val/
+  train_data_exclude: [coupled, rotation, combined, y]
+  train_dir: /train/
+net:
+  activation: selu
+  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20201019-110150/best_model
+  dilations: [1, 2, 4, 8]
+  kernel_size: 8
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20201019-110150
+  name: tcn_takktile
+  nb_filters: 24
+  nb_stacks: 1
+  output_layers: [16, 8]
+  padding: causal
+  return_sequences: false
+  save_last_model: true
+  trained: true
+  type: tcn
+  use_skip_connections: true
+training: {dropout_rate: 0.2, epochs: 0, epochs_complete: 100, kernel_initializer: he_normal,
+  log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20201019-110150,
+  lr: 0.001, opt: adam, regression: false, class_weights: false, use_batch_norm: false, use_layer_norm: false,
+  verbosity: 1}

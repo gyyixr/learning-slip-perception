@@ -143,6 +143,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             self.eval_len = (self.__len__())//10
             self.create_eval_data = False
 
+        # Calculate class ratios
+        if self.config['label_type'] == 'slip' or self.config['label_type'] == 'direction':
+            self.class_nums = self.dataloaders[0].get_data_class_numbers()
+            for dl in self.dataloaders[1:]:
+                self.class_nums += dl.get_data_class_numbers()
+            self.class_ratios = self.class_nums / float(np.mean(self.class_nums))
+
     def on_epoch_end(self):
         """ Created iterable list from dataloaders
         """

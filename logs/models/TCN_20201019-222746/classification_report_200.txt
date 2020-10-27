@@ -1,0 +1,18 @@
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0       0.81      0.69      0.74      2504
+           1       0.88      0.93      0.90      9365
+           2       0.79      0.73      0.76      2723
+
+   micro avg       0.85      0.85      0.85     14592
+   macro avg       0.82      0.78      0.80     14592
+weighted avg       0.85      0.85      0.85     14592
+
+This is the confusion matrix: 
+ P0 |  P1 
+ [[1725  610  169]
+ [ 295 8705  365]
+ [ 112  615 1996]]
+This is the cohen Kappa score: 
+ 0.706545855887
