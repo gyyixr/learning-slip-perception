@@ -29,6 +29,7 @@ import numpy as np
 import select
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 import tensorflow as tf
 from tensorflow import keras
@@ -56,9 +57,7 @@ def mean_cosine_similarity(X, Y):
 
     return total_sim/(np.shape(X)[0]//2)
 
-
-
-def plot_prediction(true, predict,
+def plot_regression(true, predict,
                     axes=["true", "predicted"],
                     name="true vs predicted",
                     save_location=""):
@@ -68,8 +67,8 @@ def plot_prediction(true, predict,
     """
     assert len(true) == len(predict)
 
-    plot = plt.figure(figsize=(10, 10))
-    plt.scatter(true, predict)
+    plot = plt.figure(figsize=(20, 20))
+    plt.scatter(true, predict, marker='.', s=20) # marker='.')
     plt.title(name)
     plt.xlabel(axes[0])
     plt.ylabel(axes[1])
@@ -86,20 +85,104 @@ def plot_prediction(true, predict,
         assert ".png" in save_location
         plot.savefig(save_location, dpi=plot.dpi)
 
+def plot_classification(x, y,
+                        classes,
+                        legend = [],
+                        name="true vs predicted",
+                        save_location=""):
+    """
+        Plotting function to plot true vs predicted value plot
+        if save_location is empty, do not save and only show
+    """
+    class_list = range(np.max(classes)+1)
+    if not legend:
+        legend = map(str, class_list)
+
+    assert len(x) == len(y) == len(classes)
+    assert len(class_list) == len(legend)
+
+    plot = plt.figure(figsize=(20, 20))
+    cmap = cm.get_cmap('brg', len(class_list))
+    for c in class_list:
+        idx = np.argwhere(classes == c)
+        plt.scatter(x[idx], y[idx], c=cmap(c), marker='.', s=20, label=legend[c], edgecolors='none') # marker='.')
+    plt.title(name)
+    plt.xlabel("x (m/s)")
+    plt.ylabel("y (m/s)")
+    plt.axis('equal')
+    plt.grid(True)
+    plt.legend(title="Classes")
+
+    if not save_location:
+        plt.show(plot)
+    else:
+        assert ".png" in save_location
+        plot.savefig(save_location, dpi=plot.dpi)
+
 
 def test_model(model, datagen):
     if not model:
         eprint("Cannot Evaluate without a model")
         raise ValueError("model cannot be none")
 
-    # Train Model
-    x_test, y_test = datagen.get_all_batches()
+    # test Model
+    x_test, y_test, vel_test = datagen.get_all_batches()
     bs = datagen.batch_size
     y_predict = model.predict(x=x_test, batch_size=bs)
-    _, y_test = datagen.get_inverse_transform(outputs=y_test)
+    x_test, y_test = datagen.get_inverse_transform(inputs= x_test, outputs=y_test)
     _, y_predict = datagen.get_inverse_transform(outputs=y_predict)
 
-    return x_test, y_test, y_predict
+    return x_test, y_test, y_predict, vel_test
+
+def generate_regression_report(y, y_predict, data_config, title = "EMPTY TITLE"):
+    if len(y) == 0 or len(y_predict) == 0:
+        eprint("Cannot generate regression results with empty arrrays")
+        return ""
+
+    # Equality check
+    assert np.shape(y) == np.shape(y_predict)
+
+    print_string = title + "\n"
+    if data_config['label_dimension'] == 'all' or data_config['label_dimension'] == 'translation':
+        print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2]))
+        print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2]))
+        print_string += "Cosine similarity for velocity is: {}\n".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2]))
+
+    if data_config['label_dimension'] == 'all':
+        print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y[:, 2], y_predict[:, 2]))
+        print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y[:, 2], y_predict[:, 2]))
+        # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
+
+    if data_config['label_dimension'] == 'rotation':
+        print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y, y_predict))
+        print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y, y_predict))
+        # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
+
+    if data_config['label_dimension'] == 'x' or data_config['label_dimension'] == 'y':
+        print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y, y_predict))
+        print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y, y_predict))
+
+    return print_string
+
+
+def generate_classification_report(y, y_predict, data_config, title = "EMPTY TITLE"):
+    if len(y) == 0 or len(y_predict) == 0:
+        eprint("Cannot generate classification results with empty arrrays")
+        return ""
+
+    assert np.shape(y) == np.shape(y_predict)
+
+    print_string = title + "\n"
+    class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
+    cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
+    ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
+    print_string += "data: {}\n".format(data_config['data_home'])
+    print_string += "exclude: {}\n".format(data_config['test_data_exclude'])
+    print_string += "This is the classification report: \n {}\n".format(class_matrix)
+    print_string += "This is the confusion matrix: \n {}\n".format(cf_matrix)
+    print_string += "This is the cohen Kappa score: \n {}".format(ck_score)
+
+    return print_string
 
 def train_net(config):
     data_config = config['data']
@@ -156,30 +239,34 @@ def train_net(config):
         else:
             model = keras.models.load_model(log_models_dir)
     else:
-        # Create TCN model
-        output_layers = network_config['output_layers'][:]
-        output_layers.append(test_y.shape[1])
-        model = compiled_tcn(return_sequences= network_config['return_sequences'],
-                            num_feat=          test_x.shape[2],
-                            nb_filters=        network_config['nb_filters'],
-                            kernel_size=       network_config['kernel_size'],
-                            dilations=         network_config['dilations'],
-                            nb_stacks=         network_config['nb_stacks'],
-                            max_len=           test_x.shape[1],
-                            use_skip_connections=network_config['use_skip_connections'],
-                            regression=        training_config['regression'],
-                            dropout_rate=      training_config['dropout_rate'],
-                            activation=        network_config['activation'],
-                            opt=               training_config['opt'],
-                            use_batch_norm=    training_config['use_batch_norm'],
-                            use_layer_norm=    training_config['use_layer_norm'],
-                            lr=                training_config['lr'],
-                            kernel_initializer=training_config['kernel_initializer'],
-                            output_layers=     output_layers)
-        log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S") 
+        if network_config['type'] == 'tcn':
+            # Create TCN model
+            output_layers = network_config['output_layers'][:]
+            output_layers.append(test_y.shape[1])
+            model = compiled_tcn(return_sequences= network_config['return_sequences'],
+                                num_feat=          test_x.shape[2],
+                                nb_filters=        network_config['nb_filters'],
+                                kernel_size=       network_config['kernel_size'],
+                                dilations=         network_config['dilations'],
+                                nb_stacks=         network_config['nb_stacks'],
+                                max_len=           test_x.shape[1],
+                                use_skip_connections=network_config['use_skip_connections'],
+                                regression=        training_config['regression'],
+                                dropout_rate=      training_config['dropout_rate'],
+                                activation=        network_config['activation'],
+                                opt=               training_config['opt'],
+                                use_batch_norm=    training_config['use_batch_norm'],
+                                use_layer_norm=    training_config['use_layer_norm'],
+                                lr=                training_config['lr'],
+                                kernel_initializer=training_config['kernel_initializer'],
+                                output_layers=     output_layers)
+            log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+        else:
+            raise ValueError("Model type not supported: {}".format(network_config['type']))
+        # Create logging locations
         log_scalers = logdir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
         training_config['log_scaler_dir'] = log_scalers
-        log_best_model = log_models_dir + "/best_model"
+        log_best_model = log_models_dir + "/best_model/"
         network_config['best_model_path'] = log_best_model
     tcn_full_summary(model)
 
@@ -218,6 +305,7 @@ def train_net(config):
         model.fit(x=datagen_train,
                   verbose=training_config['verbosity'], #0: Suppress chatty output; use Tensorboard instead
                   epochs=epochs,
+                  initial_epoch=training_config['epochs_complete'],
                   callbacks=[tensorboard_callback, model_checkpoint_callback],
                   class_weight=class_weights,
                   validation_data=(val_data[0], val_data[1]))
@@ -232,7 +320,48 @@ def train_net(config):
     training_config['epochs'] = 0
 
     # Test on validation data again
-    x, y, y_predict = test_model(model, datagen_val)
+    x, y, y_predict, vel = test_model(model, datagen_val)
+
+    # Evaluation Metrics
+    if training_config['regression'] == True:
+        print_string = generate_regression_report(y, y_predict, data_config, "")
+        print(print_string)
+
+        # Save Report
+        with open(log_models_dir + "/regression_report_{}.txt".format( training_config['epochs_complete']), "w") \
+            as text_file:
+            text_file.write(print_string)
+
+        # plot prediction data
+        assert np.shape(y) == np.shape(y_predict)
+        num_plots = np.shape(y)[1]
+        for id in range(num_plots):
+            plot_regression(y[:, id], y_predict[:, id],
+                            name="prediction plot for output dim {}".format(id),
+                            save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
+                                .format( training_config['epochs_complete'], id))
+    else:
+        print_string = generate_classification_report(y, y_predict, data_config, "CLASSIFICATION REPORT")
+        print(print_string)
+
+        # Save Report
+        with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
+            as text_file:
+            text_file.write(print_string)
+
+        # Plot results
+        plot_classification(vel[:, 0], vel[:, 1],
+                            classes=y_predict.argmax(axis=1),
+                            name="classification plot (predicted)",
+                            save_location=log_models_dir + "/classification_plot_predicted.png")
+        plot_classification(vel[:, 0], vel[:, 1],
+                            classes=y.argmax(axis=1),
+                            name="classification plot (actual)",
+                            save_location=log_models_dir + "/classification_plot_actual.png")
+        plot_classification(vel[:, 0], vel[:, 1],
+                            classes=y.argmax(axis=1) == y_predict.argmax(axis=1),
+                            name="classification plot (correct)",
+                            save_location=log_models_dir + "/classification_plot_correct.png")
 
     # Save Model
     network_config['model_dir'] = log_models_dir
@@ -254,54 +383,6 @@ def train_net(config):
         else:
             print("\n\nWARNING: Last model not saved\n\n")
 
-    # Metrics
-    print_string = ""
-    if data_config['label_type'] == 'value':
-        if data_config['label_dimension'] == 'all' or data_config['label_dimension'] == 'translation':
-            print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2]))
-            print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2]))
-            print_string += "Cosine similarity for velocity is: {}\n".format(mean_cosine_similarity(y[:, 0:2], y_predict[:, 0:2]))
-
-        if data_config['label_dimension'] == 'all':
-            print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y[:, 2], y_predict[:, 2]))
-            print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y[:, 2], y_predict[:, 2]))
-            # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
-
-        elif data_config['label_dimension'] == 'rotation':
-            print_string += "The mean squares rotation error is: {} rad^2/s^s\n".format(mean_squared_error(y, y_predict))
-            print_string += "The mean absolute rotation error is: {} rad/s\n".format(mean_absolute_error(y, y_predict))
-            # print_string += "Cosine Similarity for rotation error is: {} \n".format(mean_cosine_similarity(y[:, 2], y_predict[:, 2]))
-
-        elif data_config['label_dimension'] == 'x' or data_config['label_dimension'] == 'y':
-            print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y, y_predict))
-            print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y, y_predict))
-        with open(log_models_dir + "/regression_report_{}.txt".format( training_config['epochs_complete']), "w") \
-            as text_file:
-            text_file.write(print_string)
-    else:
-        class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
-        cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
-        ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
-        print_string += "data: {}\n".format(data_config['data_home'])
-        print_string += "exclude: {}\n".format(data_config['test_data_exclude'])
-        print_string += "This is the classification report: \n {}\n".format(class_matrix)
-        print_string += "This is the confusion matrix: \n P0 |  P1 \n {}\n".format(cf_matrix)
-        print_string += "This is the cohen Kappa score: \n {}".format(ck_score)
-        with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
-            as text_file:
-            text_file.write(print_string)
-    print(print_string)
-
-    # Prediction plots
-    if data_config['label_type'] == 'value':
-        # plot test data
-        assert np.shape(y) == np.shape(y_predict)
-        num_plots = np.shape(y)[1]
-        for id in range(num_plots):
-            plot_prediction(y[:, id], y_predict[:, id],
-                            name="prediction plot for output dim {}".format(id),
-                            save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
-                                .format( training_config['epochs_complete'], id))
 
     # Preserve config
     save_yaml(config, log_models_dir + "/config.yaml")

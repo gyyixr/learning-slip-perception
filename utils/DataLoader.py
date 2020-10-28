@@ -140,6 +140,26 @@ class takktile_dataloader(object):
             return self.__get_pressure(ret_list), \
                     self.__get_label(idx=idx)
 
+    def get_velocity_label(self, idx):
+        """
+        Return velocity data at index
+            Data Format: slip_x, slip_y, rot
+        """
+        if self.empty() or not isinstance(idx, (int, long)):
+            eprint("\t\t Incorrect index access: {}".format(idx))
+            return ()
+
+        if idx<0 or idx>=self.size():
+            eprint("\t\t Incorrect index access: {}".format(idx))
+            return ()
+
+        if self.__get_mode() == FLOW_MODE:
+            raise ValueError("Cannot get velocity in FLOW_MODE")
+        else:
+            return np.array([self.__get_slip_dir(idx)[0], \
+                            self.__get_slip_dir(idx)[1], \
+                            self.__get_ang_vel(idx)])
+
     ###########################################
     #  API FUNCTIONS
     ###########################################

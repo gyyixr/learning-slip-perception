@@ -179,7 +179,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         return X, Y
 
     def get_all_batches(self):
-        return self.__get_batches(range(self.__len__()))
+        a, b = self.__get_batches(range(self.__len__()))
+        c = self.__get_vel_label_batches(range(self.__len__()))
+        return a, b, c
 
     def set_data_attributes(self, means, stds, maxs, mins):
         """
@@ -296,7 +298,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 else:
                     break
             x, y = self.dataloaders[dl_id][self.dl_data_idx[dl_id][i]]
-            if self.transform_type:
+            if self.transform_type: # X is transformed before concatenation
                 # TODO: Handle the series_len = 0 case
                 x = self.transform[0].transform(x)
             X = np.append(X, np.expand_dims(np.array(x), axis=0), axis=0)
@@ -305,6 +307,36 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             Y = self.transform[1].transform(Y)
         return X, Y
 
+    def __get_vel_label_batches(self, batches=[]):
+        VEL_ = np.empty([0])
+        for i in batches:
+            VEL = self.__get_vel_label_batch(i)
+            VEL_ = VEL if VEL_.size == 0 else np.append(VEL_, VEL, axis=0)
+        if VEL_.size == 0:
+            return
+        return VEL_
+
+    def __get_vel_label_batch(self, batch_index):
+        if self.empty() or batch_index >= self.__len__() or batch_index < 0:
+            eprint("Index out of bounds")
+            raise ValueError("Index {} out of bounds for length {}".format(batch_index, self.__len__()))
+
+        # Fetching data from [index*bs] -> [(index+1)*bs]
+        indices = range(batch_index*self.batch_size, (batch_index+1)*self.batch_size)
+        vel_ = self.dataloaders[0].get_velocity_label(0)
+        VEL = np.empty([0, np.size(vel_)])
+        for i in indices:
+            vel = None
+            dl_id = 0
+            for dl_id in self.dl_idx:
+                # Find the bin that i belongs to
+                if i >= len(self.dl_data_idx[dl_id]):
+                    i -= len(self.dl_data_idx[dl_id])
+                else:
+                    break
+            vel = self.dataloaders[dl_id].get_velocity_label(self.dl_data_idx[dl_id][i])
+            VEL = np.append(VEL, np.expand_dims(np.array(vel, ndmin=1), axis=0), axis=0)
+        return VEL
 
     def __iter__(self):
         """Create a generator that iterate over the Sequence."""
