@@ -611,72 +611,135 @@ class takktile_dataloader(object):
         # Direction only
         elif self.config['label_type'] == 'direction':
             if self.config['label_dimension'] == 'all':
-                return self.booleans_to_categorical(
-                                [[self.__get_slip_dir(idx)[0] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[0] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[0] < -self.__speed_thresh,
-                                self.__get_slip_dir(idx)[0] < -self.__speed_thresh],
-                                [self.__get_slip_dir(idx)[1] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[1] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[1] < -self.__speed_thresh,
-                                self.__get_slip_dir(idx)[1] < -self.__speed_thresh],
+                trans_vel = self.__get_slip_dir(idx)
+                rot_vel = self.__get_ang_vel(idx) / (self.config['slip_thresh']['angular_speed']/self.__speed_thresh)
+                if 'radial_slip' in self.config and self.config['radial_slip'] == True:
+                    slip = math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) >= self.__speed_thresh
+                    # [No slip, x+, y+, rot+, x-, y- , rot-]
+                    return np.array([not slip,
+                                    slip
+                                    and trans_vel[0] > 0
+                                    and abs(trans_vel[0]) > abs(trans_vel[1])
+                                    and abs(trans_vel[0]) > abs(rot_vel),
+                                    slip
+                                    and trans_vel[1] > 0
+                                    and abs(trans_vel[1]) > abs(trans_vel[0])
+                                    and abs(trans_vel[1]) > abs(rot_vel),
+                                    slip
+                                    and rot_vel > 0
+                                    and abs(rot_vel) > abs(trans_vel[0])
+                                    and abs(rot_vel) > abs(trans_vel[1]),
+                                    slip
+                                    and trans_vel[0] < 0
+                                    and abs(trans_vel[0]) > abs(trans_vel[1])
+                                    and abs(trans_vel[0]) > abs(rot_vel),
+                                    slip
+                                    and trans_vel[1] < 0
+                                    and abs(trans_vel[1]) > abs(trans_vel[0])
+                                    and abs(trans_vel[1]) > abs(rot_vel),
+                                    slip
+                                    and rot_vel < 0
+                                    and abs(rot_vel) > abs(trans_vel[0])
+                                    and abs(rot_vel) > abs(trans_vel[1])],
+                                dtype=float)
+                else:
+                    return self.booleans_to_categorical(
+                                [[trans_vel[0] > self.__speed_thresh,
+                                not trans_vel[0] > self.__speed_thresh and \
+                                not trans_vel[0] < -self.__speed_thresh,
+                                trans_vel[0] < -self.__speed_thresh],
+                                [trans_vel[1] > self.__speed_thresh,
+                                not trans_vel[1] > self.__speed_thresh and \
+                                not trans_vel[1] < -self.__speed_thresh,
+                                trans_vel[1] < -self.__speed_thresh],
                                 [self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'],
                                 not self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'] and \
                                 not self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed'],
                                 self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed']]])
             elif self.config['label_dimension'] == 'translation':
-                return self.booleans_to_categorical(
-                                [[self.__get_slip_dir(idx)[0] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[0] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[0] < -self.__speed_thresh,
-                                self.__get_slip_dir(idx)[0] < -self.__speed_thresh],
-                                [self.__get_slip_dir(idx)[1] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[1] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[1] < -self.__speed_thresh,
-                                self.__get_slip_dir(idx)[1] < -self.__speed_thresh]])
+                trans_vel = self.__get_slip_dir(idx)
+                if 'radial_slip' in self.config and self.config['radial_slip'] == True:
+                    slip = self.__get_slip_speed(idx) >= self.__speed_thresh
+                    # [No slip, x+, y+, x-, y-]
+                    return np.array([not slip,
+                                    slip
+                                    and trans_vel[0] > 0
+                                    and abs(trans_vel[0]) > abs(trans_vel[1]),
+                                    slip
+                                    and trans_vel[1] > 0
+                                    and abs(trans_vel[1]) > abs(trans_vel[0]),
+                                    slip
+                                    and trans_vel[0] < 0
+                                    and abs(trans_vel[0]) > abs(trans_vel[1]),
+                                    slip
+                                    and trans_vel[1] < 0
+                                    and abs(trans_vel[1]) > abs(trans_vel[0])],
+                                dtype=float)
+                else:
+                    return self.booleans_to_categorical(
+                                    [[trans_vel[0] > self.__speed_thresh,
+                                        not trans_vel[0] > self.__speed_thresh and \
+                                        not trans_vel[0] < -self.__speed_thresh,
+                                        trans_vel[0] < -self.__speed_thresh],
+                                        [trans_vel[1] > self.__speed_thresh,
+                                        not trans_vel[1] > self.__speed_thresh and \
+                                        not trans_vel[1] < -self.__speed_thresh,
+                                        trans_vel[1] < -self.__speed_thresh]])
             elif self.config['label_dimension'] == 'rotation':
                 return self.booleans_to_categorical(
-                                [self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'],
-                                not self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'] and \
-                                not self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed'],
-                                self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed']])
+                                [[self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'],
+                                    not self.__get_ang_vel(idx) > self.config['slip_thresh']['angular_speed'] and \
+                                    not self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed'],
+                                    self.__get_ang_vel(idx) < -self.config['slip_thresh']['angular_speed']]])
             elif self.config['label_dimension'] == 'x':
                 return self.booleans_to_categorical(
                                 [[self.__get_slip_dir(idx)[0] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[0] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[0] < -self.__speed_thresh,
-                                self.__get_slip_dir(idx)[0] < -self.__speed_thresh]])
+                                    not self.__get_slip_dir(idx)[0] > self.__speed_thresh and \
+                                    not self.__get_slip_dir(idx)[0] < -self.__speed_thresh,
+                                    self.__get_slip_dir(idx)[0] < -self.__speed_thresh]])
             elif self.config['label_dimension'] == 'y':
                 return self.booleans_to_categorical(
                                 [[self.__get_slip_dir(idx)[1] > self.__speed_thresh,
-                                not self.__get_slip_dir(idx)[1] > self.__speed_thresh and \
-                                not self.__get_slip_dir(idx)[1] < -self.__speed_thresh],
-                                self.__get_slip_dir(idx)[1] < -self.__speed_thresh])
+                                    not self.__get_slip_dir(idx)[1] > self.__speed_thresh and \
+                                    not self.__get_slip_dir(idx)[1] < -self.__speed_thresh,
+                                    self.__get_slip_dir(idx)[1] < -self.__speed_thresh]])
             else:
                 raise ValueError("Invalid label dimension {}".format(self.config['label_dimension']))
         # Slip only
         elif self.config['label_type'] == 'slip':
             if self.config['label_dimension'] == 'all':
-                slip = abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed'] or \
-                        abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed'] or \
-                        abs(self.__get_ang_vel(idx)) > self.config['slip_thresh']['angular_speed']
-                return self.booleans_to_categorical(
-                                [[not slip, slip]])
+                trans_vel = self.__get_slip_dir(idx)
+                rot_vel = self.__get_ang_vel(idx) / (self.config['slip_thresh']['angular_speed']/self.__speed_thresh)
+                if 'radial_slip' in self.config and self.config['radial_slip'] == True:
+                    slip = math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) >= self.__speed_thresh
+                    return self.booleans_to_categorical(
+                                    [[not slip, slip]])
+                else:
+                    slip = abs(trans_vel[0]) > self.__speed_thresh or \
+                            abs(trans_vel[1]) > self.__speed_thresh or \
+                            abs(rot_vel) > self.__speed_thresh
+                    return self.booleans_to_categorical(
+                                    [[not slip, slip]])
             elif self.config['label_dimension'] == 'translation':
-                slip = abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed'] or \
-                        abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed']
-                return self.booleans_to_categorical(
+                if 'radial_slip' in self.config and self.config['radial_slip'] == True:
+                    slip = self.__get_slip_speed(idx) >= self.__speed_thresh
+                    return self.booleans_to_categorical(
+                                [[not slip, slip]])
+                else:
+                    slip = abs(self.__get_slip_dir(idx)[0]) > self.__speed_thresh or \
+                        abs(self.__get_slip_dir(idx)[1]) > self.__speed_thresh
+                    return self.booleans_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'rotation':
                 slip = abs(self.__get_ang_vel(idx)) > self.config['slip_thresh']['angular_speed']
                 return self.booleans_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'x':
-                slip = abs(self.__get_slip_dir(idx)[0]) > self.config['slip_thresh']['speed']
+                slip = abs(self.__get_slip_dir(idx)[0]) > self.__speed_thresh
                 return self.booleans_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'y':
-                slip = abs(self.__get_slip_dir(idx)[1]) > self.config['slip_thresh']['speed']
+                slip = abs(self.__get_slip_dir(idx)[1]) > self.__speed_thresh
                 return self.booleans_to_categorical(
                                 [[not slip, slip]])
             else:
