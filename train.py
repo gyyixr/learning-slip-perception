@@ -319,6 +319,26 @@ def train_net(config):
     training_config['epochs_complete'] += epochs
     training_config['epochs'] = 0
 
+    # Save Model
+    network_config['model_dir'] = log_models_dir
+    if network_config['save_last_model'] == True:
+        model.save(filepath=log_models_dir,
+                    overwrite=True,
+                    include_optimizer=True)
+    else: # Ask to save the model and wait 30s
+        print("Would you like to save the last trained model? (y/n)")
+        # Wait for 30 seconds for a response
+        i, o, e = select.select( [sys.stdin], [], [], 30)
+        if (i):
+            if sys.stdin.readline().strip() == 'y':
+                model.save(filepath=log_models_dir,
+                        overwrite=True,
+                        include_optimizer=True)
+            else:
+                print("\n\nWARNING: Last model not saved\n\n")
+        else:
+            print("\n\nWARNING: Last model not saved\n\n")
+
     # Test on validation data again
     x, y, y_predict, vel = test_model(model, datagen_val)
 
