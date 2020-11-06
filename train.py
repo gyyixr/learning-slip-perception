@@ -29,12 +29,16 @@ import numpy as np
 import select
 from datetime import datetime
 import matplotlib.pyplot as plt
+from scipy.stats import gaussian_kde
 from matplotlib import cm
+from matplotlib.colors import Normalize
+from scipy.interpolate import interpn
 
 import tensorflow as tf
 from tensorflow import keras
 from sklearn.metrics import mean_squared_error, mean_absolute_error, \
-                            classification_report, confusion_matrix, cohen_kappa_score
+                            classification_report, confusion_matrix, cohen_kappa_score, \
+                            accuracy_score
 from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, tcn_full_summary
@@ -57,6 +61,31 @@ def mean_cosine_similarity(X, Y):
 
     return total_sim/(np.shape(X)[0]//2)
 
+def density_scatter( x , y, ax = None, sort = True, bins = 20, **kwargs )   :
+    """
+    Scatter plot colored by 2d histogram
+    """
+    if ax is None :
+        fig , ax = plt.subplots()
+    data , x_e, y_e = np.histogram2d( x, y, bins = bins, density = True )
+    z = interpn( ( 0.5*(x_e[1:] + x_e[:-1]) , 0.5*(y_e[1:]+y_e[:-1]) ) , data , np.vstack([x,y]).T , method = "splinef2d", bounds_error = False)
+
+    #To be sure to plot all data
+    z[np.where(np.isnan(z))] = 0.0
+
+    # Sort the points by density, so that the densest points are plotted last
+    if sort :
+        idx = z.argsort()
+        x, y, z = x[idx], y[idx], z[idx]
+
+    ax.scatter( x, y, c=z, **kwargs )
+
+    # norm = Normalize(vmin = np.min(z), vmax = np.max(z))
+    # cbar = fig.colorbar(cm.ScalarMappable(norm = norm), ax=ax)
+    # cbar.ax.set_ylabel('Density')
+
+    return ax
+
 def plot_regression(true, predict,
                     axes=["true", "predicted"],
                     name="true vs predicted",
@@ -67,8 +96,8 @@ def plot_regression(true, predict,
     """
     assert len(true) == len(predict)
 
-    plot = plt.figure(figsize=(20, 20))
-    plt.scatter(true, predict, marker='.', s=20) # marker='.')
+    plot = plt.figure(figsize=(20, 20))# Calculate the point density
+    density_scatter(true, predict, ax=plt, bins=[10,10], marker='.', s=20, edgecolor='')
     plt.title(name)
     plt.xlabel(axes[0])
     plt.ylabel(axes[1])
@@ -176,8 +205,10 @@ def generate_classification_report(y, y_predict, data_config, title = "EMPTY TIT
     class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
     cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
     ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
+    class_accuracy = accuracy_score(y.argmax(axis=1), y_predict.argmax(axis=1))
     print_string += "data: {}\n".format(data_config['data_home'])
     print_string += "exclude: {}\n".format(data_config['test_data_exclude'])
+    print_string += "Accuracy: {}\n".format(class_accuracy)
     print_string += "This is the classification report: \n {}\n".format(class_matrix)
     print_string += "This is the confusion matrix: \n {}\n".format(cf_matrix)
     print_string += "This is the cohen Kappa score: \n {}".format(ck_score)
@@ -210,17 +241,11 @@ def train_net(config):
 
     # Load training tranformation
     if network_config['trained'] == True:
-        mean = data_config['data_transform']['mean']
-        std = data_config['data_transform']['std']
-        max_ = data_config['data_transform']['max']
-        min_ = data_config['data_transform']['min']
+        datagen_train.load_data_attributes_from_config()
+        datagen_val.load_data_attributes_from_config()
     else:
-        mean, std, max_, min_ = datagen_train.get_data_attributes()
-        data_config['data_transform']['mean'] = (mean[0].tolist(), mean[1].tolist())
-        data_config['data_transform']['std'] = (std[0].tolist(), std[1].tolist())
-        data_config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
-        data_config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
-    datagen_val.set_data_attributes(mean, std, max_, min_)
+        datagen_train.load_data_attributes_to_config()
+        datagen_val.load_data_attributes_from_config()
 
     val_data = datagen_val.get_all_batches()
 
@@ -271,8 +296,10 @@ def train_net(config):
     tcn_full_summary(model)
 
     # Train Model
+    if training_config['regression'] != True:
+        print("Training data distribution: {}".format(datagen_train.class_nums))
     epochs = int(training_config['epochs'])
-    if epochs > 0:
+    if epochs - training_config['epochs_complete'] > 0:
         # Create Tensorboard callback
         tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
         # Create best model callback (saves the best model based on a metric)
@@ -316,31 +343,15 @@ def train_net(config):
         print("Network has been trained to {} epochs".format(training_config['epochs']))
         print("No more training Required")
     network_config['trained'] = True
-    training_config['epochs_complete'] += epochs
+    training_config['epochs_complete'] = epochs if epochs > training_config['epochs_complete'] else training_config['epochs_complete']
     training_config['epochs'] = 0
-
-    # Save Model
-    network_config['model_dir'] = log_models_dir
-    if network_config['save_last_model'] == True:
-        model.save(filepath=log_models_dir,
-                    overwrite=True,
-                    include_optimizer=True)
-    else: # Ask to save the model and wait 30s
-        print("Would you like to save the last trained model? (y/n)")
-        # Wait for 30 seconds for a response
-        i, o, e = select.select( [sys.stdin], [], [], 30)
-        if (i):
-            if sys.stdin.readline().strip() == 'y':
-                model.save(filepath=log_models_dir,
-                        overwrite=True,
-                        include_optimizer=True)
-            else:
-                print("\n\nWARNING: Last model not saved\n\n")
-        else:
-            print("\n\nWARNING: Last model not saved\n\n")
 
     # Test on validation data again
     x, y, y_predict, vel = test_model(model, datagen_val)
+
+    # Create model dorectory for saving test results
+    if not os.path.isdir(log_models_dir):
+        os.mkdir(log_models_dir)
 
     # Evaluation Metrics
     if training_config['regression'] == True:
@@ -360,12 +371,46 @@ def train_net(config):
                             name="prediction plot for output dim {}".format(id),
                             save_location=log_models_dir + "/true_vs_pred_{}_{}.png"\
                                 .format( training_config['epochs_complete'], id))
+
+        if 'materials' in data_config and 'test_material' in data_config \
+            and data_config['test_material'] == True:
+            materials = data_config['materials']
+            for m in materials:
+                exclude = data_config['test_data_exclude'][:]
+                mats = materials[:]
+                mats.remove(m)
+                exclude.extend(mats)
+
+                # create datageneratorx
+                datagen_val.reset_data()
+                datagen_val.load_data_from_dir(dir_list=dir_list_val,
+                                               exclude=exclude)
+                datagen_val.load_data_attributes_from_config()
+                # Test on validation data again
+                x_m, y_m, y_predict_m, vel_m = test_model(model, datagen_val)
+                print_string = generate_regression_report(y_m, y_predict_m, data_config, "REGRESSION REPORT {}".format(m))
+                print(print_string)
+
+                # Save Report
+                with open(log_models_dir + "/regression_report_{}_{}.txt".format(m, training_config['epochs_complete']), "w") \
+                    as text_file:
+                    text_file.write(print_string)
+
+                # plot prediction data
+                assert np.shape(y_m) == np.shape(y_predict_m)
+                num_plots = np.shape(y_m)[1]
+                for id in range(num_plots):
+                    plot_regression(y_m[:, id], y_predict_m[:, id],
+                                    name="prediction plot for output dim {}".format(id),
+                                    save_location=log_models_dir + "/true_vs_pred_{}_{}_{}.png"\
+                                        .format(m, training_config['epochs_complete'], id))
+
     else:
         print_string = generate_classification_report(y, y_predict, data_config, "CLASSIFICATION REPORT")
         print(print_string)
 
         # Save Report
-        with open(log_models_dir + "/classification_report_{}.txt".format( training_config['epochs_complete']), "w") \
+        with open(log_models_dir + "/classification_report_all_{}.txt".format( training_config['epochs_complete']), "w") \
             as text_file:
             text_file.write(print_string)
 
@@ -373,15 +418,57 @@ def train_net(config):
         plot_classification(vel[:, 0], vel[:, 1],
                             classes=y_predict.argmax(axis=1),
                             name="classification plot (predicted)",
-                            save_location=log_models_dir + "/classification_plot_predicted.png")
+                            save_location=log_models_dir + "/classification_plot_all_predicted.png")
         plot_classification(vel[:, 0], vel[:, 1],
                             classes=y.argmax(axis=1),
                             name="classification plot (actual)",
-                            save_location=log_models_dir + "/classification_plot_actual.png")
+                            save_location=log_models_dir + "/classification_plot_all_actual.png")
         plot_classification(vel[:, 0], vel[:, 1],
                             classes=y.argmax(axis=1) == y_predict.argmax(axis=1),
                             name="classification plot (correct)",
-                            save_location=log_models_dir + "/classification_plot_correct.png")
+                            save_location=log_models_dir + "/classification_plot_all_correct.png")
+
+        if 'materials' in data_config and 'test_material' in data_config \
+            and data_config['test_material'] == True:
+            materials = data_config['materials']
+            for m in materials:
+                exclude = data_config['test_data_exclude'][:]
+                mats = materials[:]
+                mats.remove(m)
+                exclude.extend(mats)
+
+                # create datagenerator
+                datagen_val.reset_data()
+                datagen_val.load_data_from_dir(dir_list=dir_list_val,
+                                               exclude=exclude)
+                datagen_val.load_data_attributes_from_config()
+                if datagen_val.empty():
+                    eprint("Empty datagenerator for material: {}".format(m))
+                    continue
+
+                # Test on validation data again
+                x_m, y_m, y_predict_m, vel_m = test_model(model, datagen_val)
+                print_string = generate_classification_report(y_m, y_predict_m, data_config, "CLASSIFICATION REPORT {}".format(m))
+                print(print_string)
+
+                # Save Report
+                with open(log_models_dir + "/classification_report_{}_{}.txt".format(m, training_config['epochs_complete']), "w") \
+                    as text_file:
+                    text_file.write(print_string)
+
+                # Plot results
+                plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                    classes=y_predict_m.argmax(axis=1),
+                                    name="classification plot (predicted)",
+                                    save_location=log_models_dir + "/classification_plot_{}_predicted.png".format(m))
+                plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                    classes=y_m.argmax(axis=1),
+                                    name="classification plot (actual)",
+                                    save_location=log_models_dir + "/classification_plot_{}_actual.png".format(m))
+                plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                    classes=y_m.argmax(axis=1) == y_predict_m.argmax(axis=1),
+                                    name="classification plot (correct)",
+                                    save_location=log_models_dir + "/classification_plot_{}_correct.png".format(m))
 
     # Save Model
     network_config['model_dir'] = log_models_dir
@@ -399,10 +486,9 @@ def train_net(config):
                         overwrite=True,
                         include_optimizer=True)
             else:
-                print("\n\nWARNING: Last model not saved\n\n")
+                print("\nWARNING: Last model not saved\n")
         else:
-            print("\n\nWARNING: Last model not saved\n\n")
-
+            print("\nWARNING: Last model not saved\n")
 
     # Preserve config
     save_yaml(config, log_models_dir + "/config.yaml")

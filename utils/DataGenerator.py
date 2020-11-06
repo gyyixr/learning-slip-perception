@@ -80,7 +80,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.eval_len = 0
         self.transform_type = config['data_transform']['type']
         self.series_len = config['series_len']
-        self.config = config.copy()
+        self.config = config
 
         assert self.transform_type == 'standard' or self.transform_type == 'minmax'
 
@@ -108,15 +108,21 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         exclude : list
             list of keywords that dataloaders paths should not contain
         """
-        for directory in dir_list:
+        dir_list_ = dir_list[:]
+
+        if len(dir_list) == 0:
+            eprint("CANNOT load data generator with an empty list of directories: {}".format(dir_list))
+            return
+
+        for directory in dir_list_:
             if not os.path.isdir(directory):
                 eprint("\t\t {}: {} is not a directory".format(self.load_data_from_dir.__name__, directory))
                 return
 
         # Read Data from current directory
-        while dir_list:
+        while dir_list_:
             # Pop first directory name and create dataloader if its a valid folder
-            current_dir = dir_list.pop(0)
+            current_dir = dir_list_.pop(0)
             valid_dir = True
             for name in exclude:
                 if name in current_dir and valid_dir:
@@ -130,7 +136,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
                     if os.path.isdir(os.path.join(current_dir, o))]
             for d in data_dirs:
-                dir_list.append(d)
+                dir_list_.append(d)
 
         self.num_dl = len(self.dataloaders)
 
@@ -149,6 +155,15 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             for dl in self.dataloaders[1:]:
                 self.class_nums += dl.get_data_class_numbers()
             self.class_ratios = self.class_nums / float(np.mean(self.class_nums))
+
+    def reset_data(self):
+        if self.empty():
+            return
+
+        self.dataloaders = []
+        self.num_dl = 0
+        self.class_nums = None
+        self.class_ratios = None
 
     def on_epoch_end(self):
         """ Created iterable list from dataloaders
@@ -230,6 +245,20 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.stand_scaler_out.scale_ = self.std_out
 
         self.__set_data_transform(self.transform_type)
+
+    def load_data_attributes_from_config(self):
+        mean = self.config['data_transform']['mean']
+        std = self.config['data_transform']['std']
+        max_ = self.config['data_transform']['max']
+        min_ = self.config['data_transform']['min']
+        self.set_data_attributes(mean, std, max_, min_)
+
+    def load_data_attributes_to_config(self):
+        mean, std, max_, min_ = self.get_data_attributes()
+        self.config['data_transform']['mean'] = (mean[0].tolist(), mean[1].tolist())
+        self.config['data_transform']['std'] = (std[0].tolist(), std[1].tolist())
+        self.config['data_transform']['max'] = (max_[0].tolist(), max_[1].tolist())
+        self.config['data_transform']['min'] = (min_[0].tolist(), min_[1].tolist())
 
     def get_data_attributes(self):
         """
@@ -445,4 +474,7 @@ if __name__ == "__main__":
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
     all_b = dg[4]
-    print(np.shape(all_b[1]))
+    print(all_b[1])
+    dg.reset_data()
+    if dg.empty():
+        print("Datagen is empty")
