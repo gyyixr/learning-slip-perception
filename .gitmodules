@@ -1,0 +1,4 @@
+[submodule "dependencies/keras-tcn"]
+	path = dependencies/keras-tcn
+	url = https://github.com/abhitoronto/keras-tcn
+	branch = master

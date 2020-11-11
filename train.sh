@@ -117,11 +117,10 @@ test_net ()  {
 # test_net ./logs/models/TCN_20201017-123827_100/config.yaml # translation | slip      | 0.1  | all | combined | low_complexity | more_regular | LN
 # test_net ./logs/models/TCN_20201018-160133/config.yaml # translation | slip      | 0.12  | GELU
 # test_net ./logs/models/TCN_20201018-161148/config.yaml # translation | slip      | 0.12  | SELU
-# test_net ./logs/models/TCN_20201018-233841/config.yaml # translation | slip      | 0.12  | full SELU
+test_net ./logs/models/TCN_20201018-233841/config.yaml # translation | slip      | 0.12  | full SELU
 
 ## Translation Slip Experiments [NEW]
 # train_100_epochs ./logs/models/TCN_20201029-153721/config.yaml # v3 | simple_net | 0.5
-# train_epochs 100 ./logs/models/TCN_20201102-103832/config.yaml # v3 | simple_net | 0.05 | lr0.002 | [24, 24] | combined
 # train_epochs 200 ./logs/models/TCN_20201102-103832/config.yaml # v3 | simple_net | 0.05 | lr0.002 | [24, 24] | combined
 
 ## Translation Slip Experiments [NEW]
@@ -151,6 +150,9 @@ test_net ()  {
 # train_epochs 200 ./logs/models/TCN_20201030-113715/config.yaml # v3 | simple_net | 0.05 | lr0.002 | filters 12
 # train_epochs 200 ./logs/models/TCN_20201030-194305/config.yaml # v3 | simple_net | 0.05 | lr0.002 | [48, 24, 24]
 # train_epochs 200 ./logs/models/TCN_20201102-113640/config.yaml # v3 | simple_net | 0.05 | lr0.002 | [24, 24] | combined
+# train_epochs 200 ./logs/models/TCN_20201108-165653/config.yaml # v3 | selu->norm
+# train_epochs 100 ./logs/models/TCN_20201108-172039/config.yaml # v3 | selu->norm | [12, 24, 36, 48] | no_skip_conn
+
 
 ## Translation Direction Experiments [NEW]
 # test_net ./logs/models/TCN_20201029-154119/config.yaml # v3 | simple_net | 0.5
@@ -160,7 +162,7 @@ test_net ()  {
 
 ## Translation Value Experiments
 # train_epochs 200 ./logs/models/TCN_20201018-003156/config.yaml # translation | value | all |
-test_net ./logs/models/TCN_20201018-003156/config.yaml # translation | value | all | complex
+# test_net ./logs/models/TCN_20201018-003156/config.yaml # translation | value | all | complex
 
 
 
