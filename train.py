@@ -172,6 +172,8 @@ def generate_regression_report(y, y_predict, data_config, title = "EMPTY TITLE")
     assert np.shape(y) == np.shape(y_predict)
 
     print_string = title + "\n"
+    print_string += "data: {}\n".format(data_config['data_home'])
+    print_string += "exclude: {}\n".format(data_config['test_data_exclude'])
     if data_config['label_dimension'] == 'all' or data_config['label_dimension'] == 'translation':
         print_string += "The mean squares velocity error is: {} m^2/s^2\n".format(mean_squared_error(y[:, 0:2], y_predict[:, 0:2]))
         print_string += "The mean absolute velocity error is: {} m/s \n".format(mean_absolute_error(y[:, 0:2], y_predict[:, 0:2]))
@@ -293,7 +295,7 @@ def train_net(config):
         training_config['log_scaler_dir'] = log_scalers
         log_best_model = log_models_dir + "/best_model/"
         network_config['best_model_path'] = log_best_model
-    tcn_full_summary(model)
+    tcn_full_summary(model, expand_residual_blocks=True)
 
     # Train Model
     if training_config['regression'] != True:
@@ -379,16 +381,19 @@ def train_net(config):
                 exclude = data_config['test_data_exclude'][:]
                 mats = materials[:]
                 mats.remove(m)
-                exclude.extend(mats)
+                data_config['test_data_exclude'].extend(mats)
 
                 # create datageneratorx
                 datagen_val.reset_data()
                 datagen_val.load_data_from_dir(dir_list=dir_list_val,
-                                               exclude=exclude)
+                                               exclude=data_config['test_data_exclude'])
                 datagen_val.load_data_attributes_from_config()
                 # Test on validation data again
                 x_m, y_m, y_predict_m, vel_m = test_model(model, datagen_val)
                 print_string = generate_regression_report(y_m, y_predict_m, data_config, "REGRESSION REPORT {}".format(m))
+                data_config['test_data_exclude'] = exclude[:]
+
+                # Display on STDOUT
                 print(print_string)
 
                 # Save Report
@@ -435,12 +440,12 @@ def train_net(config):
                 exclude = data_config['test_data_exclude'][:]
                 mats = materials[:]
                 mats.remove(m)
-                exclude.extend(mats)
+                data_config['test_data_exclude'].extend(mats)
 
                 # create datagenerator
                 datagen_val.reset_data()
                 datagen_val.load_data_from_dir(dir_list=dir_list_val,
-                                               exclude=exclude)
+                                               exclude=data_config['test_data_exclude'])
                 datagen_val.load_data_attributes_from_config()
                 if datagen_val.empty():
                     eprint("Empty datagenerator for material: {}".format(m))
@@ -449,6 +454,9 @@ def train_net(config):
                 # Test on validation data again
                 x_m, y_m, y_predict_m, vel_m = test_model(model, datagen_val)
                 print_string = generate_classification_report(y_m, y_predict_m, data_config, "CLASSIFICATION REPORT {}".format(m))
+                data_config['test_data_exclude'] = exclude[:]
+
+                # Display on STDOUT
                 print(print_string)
 
                 # Save Report
