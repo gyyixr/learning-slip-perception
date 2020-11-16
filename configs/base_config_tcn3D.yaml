@@ -1,7 +1,8 @@
 # Data config
 data:
-    data_home: /home/abhinavg/data/takktile/data-v1
-    format: mat
+    data_home: /home/abhinavg/data/takktile/data-v3
+    file_format: mat
+    data_format: vector3D #vector1D, vector3D
     series_len: 100
     shuffle: True
     batch_size: 256
@@ -11,14 +12,17 @@ data:
     test_dir: /val/
     label_dimension: translation # x | y | rotation | translation | all
     label_type: direction # slip | direction | value
+    radial_slip: True
+    materials: [mat_light, felt, matt]
+    test_material: True
     # Note: slip dimension is a binary label and doesn't care about label_type
-    train_data_exclude: [coupled, rotation, wood, foam]
-    test_data_exclude: [coupled, rotation, wood, foam]
+    test_data_exclude: [wood, foam, coupled, rotation, combined]
+    train_data_exclude: [wood, foam, coupled, rotation]
     data_transform:
         type: standard # standard | minmax
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
-        speed: 0.12  #m/s
+        speed: 0.05  #m/s
         angular_speed: 0.5 #rad/s
         flow: 2.5
     histogram:
@@ -29,16 +33,16 @@ data:
 # Network config
 net:
     trained: False
-    type: tcn
-    nb_filters: 12
+    type: tcn3D
+    nb_filters: [8, 8, 8, 8]
     kernel_size: 8
-    dilations: [1, 1, 1, 1, 1]
+    dilations: [1, 2, 4, 8]
     nb_stacks: 1
     return_sequences: False
-    name: tcn_takktile
-    output_layers: [12, 12] # The final layer size is added by code
-    padding: causal
-    use_skip_connections: True
+    name: tcn3D_takktile
+    output_layers: [24, 24] # The final layer size is added by code
+    padding: same
+    use_skip_connections: False
     activation: selu
     use_best_model: False
     save_last_model: True
@@ -52,7 +56,7 @@ training:
     dropout_rate: 0.2
     kernel_initializer: he_normal
     opt: adam
-    lr: 0.001
+    lr: 0.002
     use_batch_norm: False # Fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
     use_layer_norm: True
     verbosity: 1 #0: Suppress chatty output

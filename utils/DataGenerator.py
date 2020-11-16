@@ -272,10 +272,12 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 (self.min_in, self.min_out))
 
     def get_inverse_transform(self, inputs=[], outputs=[]):
-        x = []; y = []
+        x = np.copy(inputs); y = []
+        x = np.reshape(x, (-1, self.series_len, 6))
         if self.transform_type:
             if len(inputs) > 0:
-                x = self.transform[0].inverse_transform(inputs)
+                for i, inp in enumerate(x):
+                    x[i] = self.transform[0].inverse_transform(inp)
             if len(outputs) > 0:
                 y = self.transform[1].inverse_transform(outputs)
         return x, y
@@ -334,6 +336,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             Y = np.append(Y, np.expand_dims(np.array(y, ndmin=1), axis=0), axis=0)
         if self.transform_type:
             Y = self.transform[1].transform(Y)
+        # Convert to images for 3D convolution
+        if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
+            X = np.reshape(X, (-1,self.series_len,2,3,1))
         return X, Y
 
     def __get_vel_label_batches(self, batches=[]):

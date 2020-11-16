@@ -76,6 +76,19 @@ def is_config_valid(base_config):
         eprint(" lable_type \'value\' must be used with regression, while others cannot be used with regression")
         return False
 
+    # 2. if nb_filters, kernal_size and dilations are lists their size must be the same
+    if not isinstance(net_config['dilations'], list):
+        eprint(" \'dilations\' must always be a list")
+        return False
+    if isinstance(net_config['nb_filters'], list) and \
+        not len(net_config['nb_filters']) == len(net_config['dilations']):
+        eprint(" \'nb_filters\' list must be the same size as \'dilations\' list")
+        return False
+    if isinstance(net_config['kernel_size'], list) and \
+        not len(net_config['kernel_size']) == len(net_config['dilations']):
+        eprint(" \'kernel_size\' list must be the same size as \'dilations\' list")
+        return False
+
     return True
 
 

@@ -1,0 +1,65 @@
+# Data config
+data:
+    data_home: /home/abhinavg/data/takktile/data-v3
+    format: mat
+    series_len: 100
+    shuffle: True
+    batch_size: 256
+    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+    eval_data: False # Whether or not to create eval data
+    train_dir: /train/
+    test_dir: /val/
+    label_dimension: translation # x | y | rotation | translation | all
+    label_type: direction # slip | direction | value
+    radial_slip: True
+    materials: [mat_light, felt, matt]
+    test_material: True
+    # Note: slip dimension is a binary label and doesn't care about label_type
+    test_data_exclude: [wood, foam, coupled, rotation, combined]
+    train_data_exclude: [wood, foam, coupled, rotation]
+    data_transform:
+        type: standard # standard | minmax
+        output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
+    slip_thresh:
+        speed: 0.05  #m/s
+        angular_speed: 0.5 #rad/s
+        flow: 2.5
+    histogram:
+        create: False
+        slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+        save: False
+
+# Network config
+net:
+    trained: False
+    type: tcn
+    nb_filters: 12
+    kernel_size: 8
+    dilations: [1, 2, 4, 8]
+    nb_stacks: 1
+    return_sequences: False
+    name: tcn_takktile
+    output_layers: [24, 24] # The final layer size is added by code
+    padding: causal
+    use_skip_connections: False
+    activation: selu
+    use_best_model: False
+    save_last_model: True
+
+# training config
+training:
+    epochs: 0 # How many epochs to train for
+    epochs_complete: 0
+    regression: False
+    class_weights: False
+    dropout_rate: 0.2
+    kernel_initializer: he_normal
+    opt: adam
+    lr: 0.002
+    use_batch_norm: False # Fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
+    use_layer_norm: True
+    verbosity: 1 #0: Suppress chatty output
+
+
+
+

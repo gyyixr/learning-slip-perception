@@ -22,8 +22,8 @@ from tensorflow.keras import backend as K, Model, Input, optimizers
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.utils import get_custom_objects
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Activation, SpatialDropout1D, Lambda, Dropout
-from tensorflow.keras.layers import Layer, Conv1D, Dense, BatchNormalization, LayerNormalization
+from tensorflow.keras.layers import Activation, SpatialDropout3D, Lambda, Dropout
+from tensorflow.keras.layers import Layer, Conv3D, Dense, BatchNormalization, LayerNormalization
 
 # Fix for CUDNN failed to init: https://github.com/tensorflow/tensorflow/issues/24828#issuecomment-464910864
 import tensorflow.compat.v1 as tf1
@@ -50,7 +50,9 @@ def adjust_dilations(dilations):
         return new_dilations
 
 
-class ResidualBlock(Layer):
+
+
+class ResidualBlock3D(Layer):
 
     def __init__(self,
                  dilation_rate,
@@ -68,9 +70,9 @@ class ResidualBlock(Layer):
         Args:
             x: The previous layer in the model
             trainingean indicating whether the layer should behave in training mode or in inference mode
-            dilation_rate: The dilation power of 2 we are using for this residual block
+            dilation_rate: The dilation power of 2 we are using in the temporal direction
             nb_filters: The number of convolutional filters to use in this block
-            kernel_size: The size of the convolutional kernel
+            kernel_size: The size of the 3D convolutional kernel (time, im_x, im_y)
             padding: The padding used in the convolutional layers, 'same' or 'causal'.
             activation: The final activation used in o = Activation(x + F(x))
             dropout_rate: Float between 0 and 1. Fraction of the input units to drop.
@@ -95,7 +97,7 @@ class ResidualBlock(Layer):
         self.res_output_shape = None
         self.final_activation = None
 
-        super(ResidualBlock, self).__init__(**kwargs)
+        super(ResidualBlock3D, self).__init__(**kwargs)
 
     def _add_and_activate_layer(self, layer):
         """Helper function for building layer
@@ -118,7 +120,7 @@ class ResidualBlock(Layer):
             for k in range(2):
                 name = 'conv1D_{}'.format(k)
                 with K.name_scope(name):  # name scope used to make sure weights get unique names
-                    self._add_and_activate_layer(Conv1D(filters=self.nb_filters,
+                    self._add_and_activate_layer(Conv3D(filters=self.nb_filters,
                                                         kernel_size=self.kernel_size,
                                                         dilation_rate=self.dilation_rate,
                                                         padding=self.padding,
@@ -131,20 +133,19 @@ class ResidualBlock(Layer):
                     elif self.use_layer_norm:
                         self._add_and_activate_layer(LayerNormalization())
 
-                self._add_and_activate_layer(Activation('selu'))
-                self._add_and_activate_layer(SpatialDropout1D(rate=self.dropout_rate))
+                self._add_and_activate_layer(Activation(self.activation))
+                self._add_and_activate_layer(SpatialDropout3D(rate=self.dropout_rate))
 
             if self.nb_filters != input_shape[-1]:
                 # 1x1 conv to match the shapes (channel dimension).
                 name = 'matching_conv1D'
                 with K.name_scope(name):
                     # make and build this layer separately because it directly uses input_shape
-                    self.shape_match_conv = Conv1D(filters=self.nb_filters,
+                    self.shape_match_conv = Conv3D(filters=self.nb_filters,
                                                    kernel_size=1,
                                                    padding='same',
                                                    name=name,
                                                    kernel_initializer=self.kernel_initializer)
-
             else:
                 name = 'matching_identity'
                 self.shape_match_conv = Lambda(lambda x: x, name=name)
@@ -162,7 +163,7 @@ class ResidualBlock(Layer):
             self.__setattr__(self.shape_match_conv.name, self.shape_match_conv)
             self.__setattr__(self.final_activation.name, self.final_activation)
 
-            super(ResidualBlock, self).build(input_shape)  # done to make sure self.built is set True
+            super(ResidualBlock3D, self).build(input_shape)  # done to make sure self.built is set True
 
     def call(self, inputs, training=None):
         """
@@ -192,7 +193,7 @@ class ResidualBlock(Layer):
         return [self.res_output_shape, self.res_output_shape]
 
 
-class TCN(Layer):
+class TCN3D(Layer):
     """Creates a TCN layer.
 
         Input shape:
@@ -259,7 +260,7 @@ class TCN(Layer):
             raise ValueError("Only 'causal' or 'same' padding are compatible for this layer.")
 
         # initialize parent class
-        super(TCN, self).__init__(**kwargs)
+        super(TCN3D, self).__init__(**kwargs)
 
     @property
     def receptive_field(self):
@@ -281,16 +282,17 @@ class TCN(Layer):
         for s in range(self.nb_stacks):
             for i, d in enumerate(self.dilations):
                 res_block_filters = self.nb_filters[i] if isinstance(self.nb_filters, list) else self.nb_filters
-                self.residual_blocks.append(ResidualBlock(dilation_rate=d,
-                                                          nb_filters=res_block_filters,
-                                                          kernel_size=self.kernel_size,
-                                                          padding=self.padding,
-                                                          activation=self.activation,
-                                                          dropout_rate=self.dropout_rate,
-                                                          use_batch_norm=self.use_batch_norm,
-                                                          use_layer_norm=self.use_layer_norm,
-                                                          kernel_initializer=self.kernel_initializer,
-                                                          name='residual_block_{}'.format(len(self.residual_blocks))))
+                kernel_size = self.kernel_size[i] if isinstance(self.kernel_size, list) else self.kernel_size
+                self.residual_blocks.append(ResidualBlock3D(dilation_rate=(1, 1, d),
+                                                            nb_filters=res_block_filters,
+                                                            kernel_size=kernel_size,
+                                                            padding=self.padding,
+                                                            activation=self.activation,
+                                                            dropout_rate=self.dropout_rate,
+                                                            use_batch_norm=self.use_batch_norm,
+                                                            use_layer_norm=self.use_layer_norm,
+                                                            kernel_initializer=self.kernel_initializer,
+                                                            name='residual_block_{}'.format(len(self.residual_blocks))))
                 # build newest residual block
                 self.residual_blocks[-1].build(self.build_output_shape)
                 self.build_output_shape = self.residual_blocks[-1].res_output_shape
@@ -349,6 +351,10 @@ class TCN(Layer):
                 self.output_slice_index = K.shape(self.layers_outputs[-1])[1] // 2
             x = self.slicer_layer(x)
             self.layers_outputs.append(x)
+
+        # Flatten the output for MLP
+        x = layers.Flatten()(x)
+        self.layers_outputs.append(x)
         return x
 
     def get_config(self):
@@ -356,7 +362,7 @@ class TCN(Layer):
         Returns the config of a the layer. This is used for saving and loading from a model
         :return: python dictionary with specs to rebuild layer
         """
-        config = super(TCN, self).get_config()
+        config = super(TCN3D, self).get_config()
         config['nb_filters'] = self.nb_filters
         config['kernel_size'] = self.kernel_size
         config['nb_stacks'] = self.nb_stacks
@@ -372,7 +378,7 @@ class TCN(Layer):
         return config
 
 
-def compiled_tcn(num_feat,  # type
+def compiled_tcn_3D(input_shape,  # type
                 #  num_classes,  # type
                  nb_filters,  # type
                  kernel_size,  # type
@@ -381,12 +387,12 @@ def compiled_tcn(num_feat,  # type
                  max_len,  # type
                  output_layers=[1],
                 #  output_len=1,  # type
-                 padding='causal',  # type
+                 padding='same',  # type
                  use_skip_connections=False,  # type
                  return_sequences=True,
                  regression=False,  # type
                  dropout_rate=0.05,  # type
-                 name='tcn',  # type
+                 name='tcn3D',  # type
                  kernel_initializer='he_normal',  # type
                  activation='relu',  # type:str,
                  opt='adam',
@@ -398,7 +404,7 @@ def compiled_tcn(num_feat,  # type
     Classification uses a sparse categorical loss. Please input class ids and not one-hot encodings.
 
     Args:
-        num_feat: The number of features of your input, i.e. the last dimension of: (batch_size, timesteps, input_dim).
+        input_shape: The number of features of your input, i.e. the last dimension of: (batch_size, timesteps, input_dim).
         num_classes: The size of the final dense layer, how many classes we are predicting.
         nb_filters: The number of filters to use in the convolutional layers.
         kernel_size: The size of the kernel to use in each convolutional layer.
@@ -424,12 +430,12 @@ def compiled_tcn(num_feat,  # type
 
     dilations = adjust_dilations(dilations)
 
-    input_layer = Input(shape=(max_len, num_feat))
+    input_layer = Input(shape=(max_len,) + input_shape)
 
-    x = TCN(nb_filters, kernel_size, nb_stacks, dilations, padding,
-            use_skip_connections, dropout_rate, return_sequences,
-            activation, kernel_initializer, use_batch_norm, use_layer_norm,
-            name=name)(input_layer)
+    x = TCN3D(nb_filters, kernel_size, nb_stacks, dilations, padding,
+                use_skip_connections, dropout_rate, return_sequences,
+                activation, kernel_initializer, use_batch_norm, use_layer_norm,
+                name=name)(input_layer)
 
     print('x.shape=', x.shape)
 
@@ -502,28 +508,28 @@ def compiled_tcn(num_feat,  # type
     return model
 
 
-def tcn_full_summary(model, expand_residual_blocks=True):
-    layers = copy.copy(model._layers)  # store existing layers
-    model._layers = []  # clear layers
+# def tcn_full_summary(model, expand_residual_blocks=True):
+#     layers = copy.copy(model._layers)  # store existing layers
+#     model._layers = []  # clear layers
 
-    for i in range(len(layers)):
-        if isinstance(layers[i], TCN):
-            for layer in layers[i]._layers:
-                if not isinstance(layer, ResidualBlock):
-                    if not hasattr(layer, '__iter__'):
-                        model._layers.append(layer)
-                else:
-                    if expand_residual_blocks:
-                        for lyr in layer._layers:
-                            if not hasattr(lyr, '__iter__'):
-                                model._layers.append(lyr)
-                    else:
-                        model._layers.append(layer)
-        else:
-            model._layers.append(layers[i])
+#     for i in range(len(layers)):
+#         if isinstance(layers[i], TCN):
+#             for layer in layers[i]._layers:
+#                 if not isinstance(layer, ResidualBlock):
+#                     if not hasattr(layer, '__iter__'):
+#                         model._layers.append(layer)
+#                 else:
+#                     if expand_residual_blocks:
+#                         for lyr in layer._layers:
+#                             if not hasattr(lyr, '__iter__'):
+#                                 model._layers.append(lyr)
+#                     else:
+#                         model._layers.append(layer)
+#         else:
+#             model._layers.append(layers[i])
 
-    model.summary()  # print summary
+#     model.summary()  # print summary
 
-    # restore original layers
-    model._layers = []
-    [model._layers.append(lyr) for lyr in layers]
+#     # restore original layers
+#     model._layers = []
+#     [model._layers.append(lyr) for lyr in layers]

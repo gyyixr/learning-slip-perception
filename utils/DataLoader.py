@@ -78,7 +78,7 @@ class takktile_dataloader(object):
         self.config = config.copy()
 
         # Load Data
-        self.__load_data_dir(data_dir, mat_format=(config['format']=='mat'))
+        self.__load_data_dir(data_dir, mat_format=(config['file_format']=='mat'))
 
         # Set states
         self.create_hist = self.config['histogram']['create']
@@ -749,7 +749,10 @@ class takktile_dataloader(object):
 
 
     def __get_pressure(self, idx):
-        return (self.__data['pressure'][idx] + PRESSURE_OFFSET)/PRESSURE_SCALE
+        ret = (self.__data['pressure'][idx] + PRESSURE_OFFSET)/PRESSURE_SCALE
+        # if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
+        #     ret = np.reshape(ret, (-1,2,3,1))
+        return ret
 
     def __get_mode(self):
         return self.__data['mode']
