@@ -41,7 +41,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, \
                             accuracy_score
 from sklearn.metrics.pairwise import cosine_similarity
 
-from nets import compiled_tcn, tcn_full_summary
+from nets import compiled_tcn, compiled_tcn_3D, tcn_full_summary
 from utils import takktile_datagenerator, load_yaml, save_yaml
 
 
@@ -158,7 +158,8 @@ def test_model(model, datagen):
     x_test, y_test, vel_test = datagen.get_all_batches()
     bs = datagen.batch_size
     y_predict = model.predict(x=x_test, batch_size=bs)
-    x_test, y_test = datagen.get_inverse_transform(inputs= x_test, outputs=y_test)
+    x_test, y_test = datagen.get_inverse_transform(inputs= x_test,\
+                                                   outputs=y_test)
     _, y_predict = datagen.get_inverse_transform(outputs=y_predict)
 
     return x_test, y_test, y_predict, vel_test
@@ -218,6 +219,7 @@ def generate_classification_report(y, y_predict, data_config, title = "EMPTY TIT
     return print_string
 
 def train_net(config):
+    print("\n\n****************TRAINING TCN********************\n\n")
     data_config = config['data']
     network_config = config['net']
     training_config = config['training']
@@ -288,6 +290,28 @@ def train_net(config):
                                 kernel_initializer=training_config['kernel_initializer'],
                                 output_layers=     output_layers)
             log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+        elif network_config['type'] == 'tcn3D':
+            output_layers = network_config['output_layers'][:]
+            output_layers.append(test_y.shape[1])
+            model = compiled_tcn_3D(return_sequences=  network_config['return_sequences'],
+                                    input_shape=       (2,3,1),
+                                    nb_filters=        network_config['nb_filters'],
+                                    kernel_size=       (3, 3, network_config['kernel_size']),
+                                    dilations=         network_config['dilations'],
+                                    nb_stacks=         network_config['nb_stacks'],
+                                    max_len=           test_x.shape[1],
+                                    use_skip_connections=network_config['use_skip_connections'],
+                                    regression=        training_config['regression'],
+                                    dropout_rate=      training_config['dropout_rate'],
+                                    activation=        network_config['activation'],
+                                    opt=               training_config['opt'],
+                                    use_batch_norm=    training_config['use_batch_norm'],
+                                    use_layer_norm=    training_config['use_layer_norm'],
+                                    lr=                training_config['lr'],
+                                    kernel_initializer=training_config['kernel_initializer'],
+                                    output_layers=     output_layers)
+            log_models_dir = logdir + "/models/" + "TCN3D_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+
         else:
             raise ValueError("Model type not supported: {}".format(network_config['type']))
         # Create logging locations
@@ -508,5 +532,5 @@ if __name__ == "__main__":
     print("Usage:  train.py <name of yaml config file>")
     config = load_yaml(sys.argv[1])
 
-    if config['net']['type'] == 'tcn':
+    if config['net']['type'] == 'tcn' or config['net']['type'] == 'tcn3D':
         train_net(config)

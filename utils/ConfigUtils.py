@@ -36,7 +36,7 @@ def load_yaml(yaml_file):
         raise ValueError
 
     if not '.yaml' in yaml_file:
-        eprint("YAML file has the wrong format: {}".format(yaml_file))
+        eprint("YAML file has the wrong file_format: {}".format(yaml_file))
         raise ValueError
 
     input_stream = file(yaml_file, 'r')
@@ -94,7 +94,7 @@ def is_config_valid(base_config):
 
 def save_yaml(dict_, yaml_file):
     if not '.yaml' in yaml_file:
-        eprint("YAML file has the wrong format: {}".format(yaml_file))
+        eprint("YAML file has the wrong file_format: {}".format(yaml_file))
         raise ValueError
 
     if not isinstance(dict_, dict):

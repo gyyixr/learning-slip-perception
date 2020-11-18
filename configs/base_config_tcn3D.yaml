@@ -3,9 +3,9 @@ data:
     data_home: /home/abhinavg/data/takktile/data-v3
     file_format: mat
     data_format: vector3D #vector1D, vector3D
-    series_len: 100
+    series_len: 50
     shuffle: True
-    batch_size: 256
+    batch_size: 128
     slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
@@ -34,7 +34,7 @@ data:
 net:
     trained: False
     type: tcn3D
-    nb_filters: [8, 8, 8, 8]
+    nb_filters: [4,4,4,4]
     kernel_size: 8
     dilations: [1, 2, 4, 8]
     nb_stacks: 1

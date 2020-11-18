@@ -9,7 +9,7 @@ Developed at UTIAS, Toronto.
 
 author: Abhinav Grover
 
-date: 
+date:
 """
 
 import inspect
@@ -118,7 +118,7 @@ class ResidualBlock3D(Layer):
             self.res_output_shape = input_shape
 
             for k in range(2):
-                name = 'conv1D_{}'.format(k)
+                name = 'conv3D_{}'.format(k)
                 with K.name_scope(name):  # name scope used to make sure weights get unique names
                     self._add_and_activate_layer(Conv3D(filters=self.nb_filters,
                                                         kernel_size=self.kernel_size,
@@ -126,6 +126,24 @@ class ResidualBlock3D(Layer):
                                                         padding=self.padding,
                                                         name=name,
                                                         kernel_initializer=self.kernel_initializer))
+
+                # name_spatial = 'conv3D_spatial_{}'.format(k)
+                # name_temporal = 'conv3D_temporal_{}'.format(k)
+                # with K.name_scope(name_spatial):  # name scope used to make sure weights get unique names
+                #     kernel_spatial = (self.kernel_size[0], self.kernel_size[1], 1)
+                #     kernel_temporal = (1, 1, self.kernel_size[2])
+                #     self._add_and_activate_layer(Conv3D(filters=self.nb_filters,
+                #                                         kernel_size=kernel_spatial,
+                #                                         dilation_rate=1,
+                #                                         padding=self.padding,
+                #                                         name=name_spatial,
+                #                                         kernel_initializer=self.kernel_initializer))
+                #     self._add_and_activate_layer(Conv3D(filters=self.nb_filters,
+                #                                         kernel_size=kernel_temporal,
+                #                                         dilation_rate=self.dilation_rate,
+                #                                         padding=self.padding,
+                #                                         name=name_temporal,
+                #                                         kernel_initializer=self.kernel_initializer))
 
                 with K.name_scope('norm_{}'.format(k)):
                     if self.use_batch_norm:
@@ -138,7 +156,7 @@ class ResidualBlock3D(Layer):
 
             if self.nb_filters != input_shape[-1]:
                 # 1x1 conv to match the shapes (channel dimension).
-                name = 'matching_conv1D'
+                name = 'matching_conv3D'
                 with K.name_scope(name):
                     # make and build this layer separately because it directly uses input_shape
                     self.shape_match_conv = Conv3D(filters=self.nb_filters,

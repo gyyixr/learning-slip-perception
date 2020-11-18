@@ -78,11 +78,12 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.data_mode = config['slip_filter']
         self.create_eval_data = config['eval_data']
         self.eval_len = 0
-        self.transform_type = config['data_transform']['type']
+        self.transform_type = config['data_transform']['type'] if 'data_transform' in config else None
         self.series_len = config['series_len']
         self.config = config
 
-        assert self.transform_type == 'standard' or self.transform_type == 'minmax'
+        if self.transform_type:
+            assert self.transform_type == 'standard' or self.transform_type == 'minmax'
 
         # Reset and prepare data
         self.on_epoch_end()
@@ -339,6 +340,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         # Convert to images for 3D convolution
         if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
             X = np.reshape(X, (-1,self.series_len,2,3,1))
+            X = np.flip(X, 2)
+            X[:,:,0,:,:] = np.flip(X[:,:,0,:,:], 2)
         return X, Y
 
     def __get_vel_label_batches(self, batches=[]):
@@ -469,7 +472,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    config = load_yaml("../configs/base_config.yaml")
+    config = load_yaml("../configs/base_config_tcn.yaml")
     config = config['data']
     dg = takktile_datagenerator(config)
     if dg.empty():

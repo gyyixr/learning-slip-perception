@@ -1,7 +1,7 @@
 # Data config
 data:
     data_home: /home/abhinavg/data/takktile/data-v3
-    format: mat
+    file_format: mat
     series_len: 100
     shuffle: True
     batch_size: 256
