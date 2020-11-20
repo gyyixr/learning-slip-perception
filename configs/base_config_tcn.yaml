@@ -2,21 +2,25 @@
 data:
     data_home: /home/abhinavg/data/takktile/data-v3
     file_format: mat
+    data_format: vector1D #vector1D, vector3D
     series_len: 100
     shuffle: True
     batch_size: 256
-    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+    slip_filter: 4  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
     test_dir: /val/
     label_dimension: translation # x | y | rotation | translation | all
     label_type: direction # slip | direction | value
-    radial_slip: True
-    materials: [mat_light, felt, matt]
-    test_material: True
+    radial_slip: True # slip boundry is circular instead of a square
+    materials: [matt]
+    test_material: False # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [wood, foam, coupled, rotation, combined]
-    train_data_exclude: [wood, foam, coupled, rotation]
+    test_data_exclude: [wood, foam, mat_light, felt, coupled, rotation, combined]
+    train_data_exclude: [wood, foam, mat_light, felt, coupled, rotation]
+    augment:
+        mode: h_flip # none | h_flip | f_flip | both_flip | g_noise
+        probability: 0.5
     data_transform:
         type: standard # standard | minmax
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
@@ -28,6 +32,8 @@ data:
         create: False
         slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
         save: False
+    use_pressure_delta: False # the inputs are not pressure delta from the previous values
+    truncate_pressure: 0  # int: number of values from the last measurement to randomly truncate
 
 # Network config
 net:

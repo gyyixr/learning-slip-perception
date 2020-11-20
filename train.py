@@ -42,7 +42,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, \
 from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, compiled_tcn_3D, tcn_full_summary
-from utils import takktile_datagenerator, load_yaml, save_yaml
+from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_augment
 
 
 #CONSTANTS
@@ -228,7 +228,7 @@ def train_net(config):
     data_home = data_config['data_home']
 
     # Create datagenerator Train
-    datagen_train = takktile_datagenerator(config=data_config)
+    datagen_train = takktile_datagenerator(config=data_config, augment=takktile_data_augment(data_config))
 
     # Load data into datagen
     dir_list_train = [data_home + data_config['train_dir']]
@@ -236,7 +236,7 @@ def train_net(config):
                                      exclude=data_config['train_data_exclude'])
 
     # Create datagenerator Val
-    datagen_val = takktile_datagenerator(config=data_config)
+    datagen_val = takktile_datagenerator(config=data_config, augment=takktile_data_augment(None))
 
     # Load data into datagen
     dir_list_val = [data_home + data_config['test_dir']]
@@ -373,7 +373,12 @@ def train_net(config):
     training_config['epochs'] = 0
 
     # Test on validation data again
+    if 'truncate_pressure' in data_config:
+        tp = data_config['truncate_pressure']
+        data_config['truncate_pressure'] = 0
     x, y, y_predict, vel = test_model(model, datagen_val)
+    if 'truncate_pressure' in data_config:
+        data_config['truncate_pressure'] = tp
 
     # Create model dorectory for saving test results
     if not os.path.isdir(log_models_dir):
@@ -413,7 +418,13 @@ def train_net(config):
                                                exclude=data_config['test_data_exclude'])
                 datagen_val.load_data_attributes_from_config()
                 # Test on validation data again
+                if 'truncate_pressure' in data_config:
+                    tp = data_config['truncate_pressure']
+                    data_config['truncate_pressure'] = 0
                 x_m, y_m, y_predict_m, vel_m = test_model(model, datagen_val)
+                if 'truncate_pressure' in data_config:
+                    data_config['truncate_pressure'] = tp
+
                 print_string = generate_regression_report(y_m, y_predict_m, data_config, "REGRESSION REPORT {}".format(m))
                 data_config['test_data_exclude'] = exclude[:]
 

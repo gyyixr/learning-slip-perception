@@ -89,6 +89,13 @@ def is_config_valid(base_config):
         eprint(" \'kernel_size\' list must be the same size as \'dilations\' list")
         return False
 
+    # Number of values truncated cannot be greater than equal to series length
+    if 'truncate_presssure' in data_config and \
+        (not isinstance(data_config['truncate_presssure'], int) or \
+        data_config['truncate_presssure'] >= data_config['series_len']):
+        eprint("\'truncate_pressure\' has to be an int and less than \'series_len\': {}".format(data_config['truncate_presssure']))
+        return False
+
     return True
 
 

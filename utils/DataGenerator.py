@@ -32,6 +32,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import tensorflow as tf
 from DataLoader import takktile_dataloader
 from ConfigUtils import load_yaml
+from DataAugment import takktile_data_augment
 
 # CONSTANTS
 ALL_VALID = 1
@@ -48,7 +49,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, config):
+    def __init__(self, config, augment = None):
         """ Init function for takktile data generator
 
         Parameters
@@ -81,6 +82,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.transform_type = config['data_transform']['type'] if 'data_transform' in config else None
         self.series_len = config['series_len']
         self.config = config
+        self.augment = augment
 
         if self.transform_type:
             assert self.transform_type == 'standard' or self.transform_type == 'minmax'
@@ -131,7 +133,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             data_file = current_dir + "/data.mat"
             if os.path.isfile(data_file) and "takktile_" in current_dir and valid_dir:
                 self.dataloaders.append(takktile_dataloader(data_dir=current_dir,
-                                                            config=self.config))
+                                                            config=self.config,
+                                                            augment=self.augment))
 
             # Find all child directories of current directory and recursively load them
             data_dirs = [os.path.join(current_dir, o) for o in os.listdir(current_dir)
@@ -274,7 +277,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
     def get_inverse_transform(self, inputs=[], outputs=[]):
         x = np.copy(inputs); y = []
-        x = np.reshape(x, (-1, self.series_len, 6))
+        if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
+            x = np.reshape(x, (-1, self.series_len, 6))
         if self.transform_type:
             if len(inputs) > 0:
                 for i, inp in enumerate(x):
@@ -474,7 +478,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 if __name__ == "__main__":
     config = load_yaml("../configs/base_config_tcn.yaml")
     config = config['data']
-    dg = takktile_datagenerator(config)
+    dg = takktile_datagenerator(config, takktile_data_augment(config))
     if dg.empty():
         print("The current Data generator is empty")
     # Load data into datagen
@@ -482,7 +486,8 @@ if __name__ == "__main__":
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
     all_b = dg[4]
-    print(all_b[1])
+    print("Pressure: {}".format(all_b[0][0,0,:]))
+    print("Label: {}".format(all_b[1][0,:]))
     dg.reset_data()
     if dg.empty():
         print("Datagen is empty")
