@@ -26,9 +26,8 @@ import numpy as np
 # CONSTANTS
 DO_NOTHING = 'none'
 HORIZONTAL_FLIP = 'h_flip'
-VERTICAL_FLIP = 'f_flip'
+VERTICAL_FLIP = 'v_flip'
 BOTH_FLIP = 'both_flip'
-GAUSS_NOISE = 'g_noise'
 
 VEL_X = 0
 VEL_Y = 1
@@ -49,17 +48,23 @@ VEL_Y = 1
 #  ---------------->  X
 
 class takktile_data_augment():
-    def __init__(self, data_config):
+    def __init__(self, data_config, noisy=True):
         """
         takktile data augmentation class. Produces random horizontal and vertical flips in the data.
         """
         if not data_config or not 'augment' in data_config:
-            self.config = {'mode': DO_NOTHING, 'probability': 0.0}
+            self.config = {'mode': DO_NOTHING, 'probability': 0.0, 'input_noise':0.0}
         else:
             self.config = data_config['augment']
-        
+
         assert 'mode' in self.config
         assert 'probability' in self.config and 0.0 <= self.config['probability'] <= 1.0
+        assert 'input_noise' in self.config and 0.0 <= self.config['input_noise'] <= 10.0
+
+        self.noisy = noisy
+        if self.noisy and not 'input_noise' in self.config:
+            self.noisy = False
+            eprint("Cannot use noisy input without \'input_noise\' argument")
 
     def __call__(self, data):
         """
@@ -69,20 +74,22 @@ class takktile_data_augment():
         -----------
         data : x,y data with x being network input (size of series length) and y being the label
         """
-
+        # Augment data with a certain probability
         if np.random.uniform() <= self.config['probability']:
             if self.config['mode'] == HORIZONTAL_FLIP:
-                return self.__horizontal_flip(data)
+                data = self.__horizontal_flip(data)
             elif self.config['mode'] == VERTICAL_FLIP:
-                return self.__vertical_flip(data)
+                data = self.__vertical_flip(data)
             elif self.config['mode'] == BOTH_FLIP:
-                return self.__both_flip(data)
-            elif self.config['mode'] == GAUSS_NOISE:
-                return self.__gaussian_noise(data)
+                data = self.__both_flip(data)
             else:
-                return self.__do_nothing(data)
+                data = self.__do_nothing(data)
         else:
-            return self.__do_nothing(data)
+            data = self.__do_nothing(data)
+        # Add gaussian noise with a certain probability
+        if self.noisy and np.random.uniform() <= self.config['probability']:
+            data = self.__gaussian_noise(data)
+        return data
 
     def __do_nothing(self, data):
         """
@@ -90,17 +97,17 @@ class takktile_data_augment():
 
         input
         -----------
-        data : x,y data with x being network input and y being the velocities
+        data : x,y,z data with x being network input and y,z being the velocities
         """
         return data
 
     def __horizontal_flip(self, data):
         """
-        Horizontally mirror both inputs and outputs
+        Mirror both inputs and outputs about a horizontal axis
 
         input
         -----------
-        data : x,y data with x being network input and y being the velocities
+        data : x,y,z data with x being network input and y,z being the velocities
         """
         x, y, z = data
         if x.shape[1] != 6:
@@ -114,11 +121,11 @@ class takktile_data_augment():
 
     def __vertical_flip(self, data):
         """
-        Vertically mirror both inputs and outputs
+        Mirror both inputs and outputs about a vertical axis
 
         input
         -----------
-        data : x,y data with x being network input and y being the velocities
+        data : x,y,z data with x being network input and y,z being the velocities
         """
         x, y, z = data
         if x.shape[1] != 6:
@@ -132,11 +139,11 @@ class takktile_data_augment():
 
     def __both_flip(self, data):
         """
-        Both Horizontally and vertically mirror both inputs and outputs
+        rotate both input and output by 180 degrees
 
         input
         -----------
-        data : x,y data with x being network input and y being the velocities
+        data : x,y,z data with x being network input and y,z being the velocities
         """
         x, y, z = data
         if x.shape[1] != 6:
@@ -160,7 +167,14 @@ class takktile_data_augment():
 
         input
         -----------
-        data : x,y data with x being network input and y being the velocities
+        data : x,y,z data with x being network input and y,z being the velocities
         """
-        eprint("Gaussian Noise Not implemented yet")
-        return self.__do_nothing(data)
+        x, y, z = data
+        if x.shape[1] != 6:
+            eprint("Cannot Augment input data of shape {}".format(x.shape))
+            return data
+        multiple = self.config['input_noise'] if 'input_noise' in self.config else 0.0
+        noise =  multiple * np.random.normal(0, .1, np.shape(x))
+        x_noisy = x + noise
+
+        return x_noisy, y, z

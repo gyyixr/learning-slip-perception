@@ -28,6 +28,7 @@ import scipy.io as sio
 import copy
 
 from ConfigUtils import load_yaml
+from DataAugment import takktile_data_augment
 
 # GLOBAL CONSTANTS
 SPEED_THRESH_FLOW = 2.5                # Relatively tuned (High is strict for slip)

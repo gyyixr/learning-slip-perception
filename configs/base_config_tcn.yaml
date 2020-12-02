@@ -19,8 +19,9 @@ data:
     test_data_exclude: [wood, foam, mat_light, felt, coupled, rotation, combined]
     train_data_exclude: [wood, foam, mat_light, felt, coupled, rotation]
     augment:
-        mode: h_flip # none | h_flip | f_flip | both_flip | g_noise
+        mode: both_flip # none | h_flip | v_flip | both_flip 
         probability: 0.5
+        input_noise: 0.0  # Gaussian input noise is always on
     data_transform:
         type: standard # standard | minmax
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard

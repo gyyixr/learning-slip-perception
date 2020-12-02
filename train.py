@@ -228,7 +228,7 @@ def train_net(config):
     data_home = data_config['data_home']
 
     # Create datagenerator Train
-    datagen_train = takktile_datagenerator(config=data_config, augment=takktile_data_augment(data_config))
+    datagen_train = takktile_datagenerator(config=data_config, augment=takktile_data_augment(data_config, noisy=True))
 
     # Load data into datagen
     dir_list_train = [data_home + data_config['train_dir']]
@@ -332,15 +332,23 @@ def train_net(config):
         if training_config['regression'] == True:
             best_metric = 'val_loss'
             mode = 'min'
+            min_delta = 0.0001
         else:
             best_metric = 'val_categorical_accuracy'
             mode = 'max'
+            min_delta = 0.0001
         model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
                                                         filepath=log_best_model,
                                                         save_weights_only=False,
                                                         monitor=best_metric,
                                                         mode=mode,
                                                         save_best_only=True)
+        # Create Early stop callback
+        es = keras.callbacks.EarlyStopping(monitor='val_loss',
+                                           mode='min',
+                                           verbose=1,
+                                           min_delta=min_delta,
+                                           patience=50)
 
         # Compute class weights
         class_weights = []
