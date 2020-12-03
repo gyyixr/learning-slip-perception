@@ -179,8 +179,8 @@ test_net ()  {
 # train_epochs 400 ./logs/models/TCN_20201201-225311/config.yaml # v3 | slip_data | matt only | both_flip 0.75 | gauss 0.0
 # train_epochs 162 ./logs/models/TCN_20201202-102603/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 1.0
 # train_epochs 98 ./logs/models/TCN_20201202-104746/config.yaml # v3 | slip_data | matt only | both_flip 0.5 | gauss 3.0
-train_epochs 400 ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 3.0
-test_net ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 0.0
+# train_epochs 400 ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 0.0
+# train_epochs 500 ./logs/models/TCN_20201202-155353/config.yaml # v3 | slip_data | matt only | both_flip 0.5 | gauss 5.0 P0.5
 
 
 ## Translation Direction Experiments [NEW]

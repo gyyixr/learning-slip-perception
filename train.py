@@ -368,6 +368,7 @@ def train_net(config):
                   epochs=epochs,
                   initial_epoch=training_config['epochs_complete'],
                   callbacks=[tensorboard_callback, model_checkpoint_callback],
+                #   callbacks=[tensorboard_callback, model_checkpoint_callback, es], # Early Stop
                   class_weight=class_weights,
                   validation_data=(val_data[0], val_data[1]))
         ###

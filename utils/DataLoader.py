@@ -45,6 +45,18 @@ ANG_SPEED_SCALE = 1.0
 PRESSURE_SCALE = 1.0
 PRESSURE_OFFSET = 0
 
+# Helper Functions
+def subtract_list(a, b):
+    """
+    Remove all elements of a that are present in b, from a
+    a - b
+    """
+    for x in b:
+        if x in a:
+            a.remove(x)
+    return a
+
+
 class takktile_dataloader(object):
     """
         Takktile data loading class (.mat files)
@@ -104,6 +116,9 @@ class takktile_dataloader(object):
         self.data_std = self.__get_data_std()
         self.data_max = self.__get_data_max()
         self.data_min = self.__get_data_min()
+
+        # Indices that are not used
+        self.not_idx = []
 
         # Create histogram
         if self.create_hist == True:
@@ -218,6 +233,19 @@ class takktile_dataloader(object):
         # Collect the labels
         labels = self.__get_all_labels()
 
+        return np.sum(labels, axis=0, dtype=np.int32)
+
+    def get_valid_data_class_numbers(self):
+        """
+        Get means of inputs and outputs
+        return: (input_means, output_means)
+        """
+        if self.config['label_type'] == 'value':
+            return []
+
+        # Collect the labels
+        labels = self.__get_all_labels(self.get_valid_idx())
+
         return np.sum(labels, axis=0)
 
     def get_data_mean(self):
@@ -289,7 +317,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.valid_idx)
+        return subtract_list(copy.copy(self.valid_idx), self.not_idx)
 
     def get_slip_idx(self):
         """
@@ -297,7 +325,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.slip_idx)
+        return subtract_list(copy.copy(self.slip_idx), self.not_idx)
 
     def get_rot_idx(self):
         """
@@ -305,7 +333,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.rot_idx)
+        return subtract_list(copy.copy(self.rot_idx), self.not_idx)
 
     def get_slip_n_rot_idx(self):
         """
@@ -313,7 +341,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.coupled_slip_idx)
+        return subtract_list(copy.copy(self.coupled_slip_idx), self.not_idx)
 
     def get_no_slip_idx(self):
         """
@@ -321,7 +349,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.no_slip_idx)
+        return subtract_list(copy.copy(self.no_slip_idx), self.not_idx)
 
     def get_slip_stream_idx(self):
         """
@@ -329,7 +357,7 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.slip_stream_idx)
+        return subtract_list(copy.copy(self.slip_stream_idx), self.not_idx)
 
     def get_no_slip_stream_idx(self):
         """
@@ -337,7 +365,33 @@ class takktile_dataloader(object):
         """
         if self.empty():
             return []
-        return copy.copy(self.no_slip_stream_idx)
+        return subtract_list(copy.copy(self.no_slip_stream_idx), self.not_idx)
+
+    def balance_classes(self):
+        """
+        Random Undersampling to equalize the class sizes
+        """
+        if self.config['label_type'] == 'value':
+            eprint("Cannot balance classes in regression mode")
+            return
+
+        class_sizes = self.get_data_class_numbers()
+        class_diff = class_sizes - np.min(class_sizes)
+        all_idx = np.array(self.get_all_idx())
+
+        class_labels = self.__get_all_labels()
+        self.not_idx = []
+
+        for i, diff in enumerate(class_diff):
+            labels = class_labels[:, i]
+            class_idx = all_idx[np.argwhere(labels == np.max(labels))]
+            class_idx = class_idx[:, 0]
+
+            for j in range(diff):
+                idx = np.random.choice(class_idx)
+                class_idx = np.delete(class_idx, np.where(class_idx == idx))
+                self.not_idx.append(idx)
+
 
     ###########################################
     #  PRIVATE FUNCTIONS
@@ -620,7 +674,7 @@ class takktile_dataloader(object):
                        np.ones_like(self.__get_label(vel=vel, ang_vel=ang_vel))
 
 
-    def booleans_to_categorical(self, b_list):
+    def __bool_to_categorical(self, b_list):
         """
             Input is a list of booleans and the output is a categorical array with
             a '1' in the corresponding position of the array
@@ -641,8 +695,9 @@ class takktile_dataloader(object):
         return ret
 
 
-    def __get_all_labels(self):
-        all_indices = self.get_all_idx()
+    def __get_all_labels(self, all_indices=None):
+        if all_indices == None:
+            all_indices = self.get_all_idx()
         vel = self.__get_trans_vel(idx=all_indices[0])
         ang_vel = self.__get_ang_vel(idx=all_indices[0])
         labels = self.__get_label(vel=vel, ang_vel=ang_vel)
@@ -711,7 +766,7 @@ class takktile_dataloader(object):
                                     and abs(rot_vel) > abs(trans_vel[1])],
                                 dtype=float)
                 else:
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                 [[trans_vel[0] > self.__speed_thresh,
                                 not trans_vel[0] > self.__speed_thresh and \
                                 not trans_vel[0] < -self.__speed_thresh,
@@ -743,7 +798,7 @@ class takktile_dataloader(object):
                                     and abs(trans_vel[1]) > abs(trans_vel[0])],
                                 dtype=float)
                 else:
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                     [[trans_vel[0] > self.__speed_thresh,
                                         not trans_vel[0] > self.__speed_thresh and \
                                         not trans_vel[0] < -self.__speed_thresh,
@@ -753,19 +808,19 @@ class takktile_dataloader(object):
                                         not trans_vel[1] < -self.__speed_thresh,
                                         trans_vel[1] < -self.__speed_thresh]])
             elif self.config['label_dimension'] == 'rotation':
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[rot_vel > self.__speed_thresh,
                                     not rot_vel > self.__speed_thresh and \
                                     not rot_vel < -self.__speed_thresh,
                                     rot_vel < -self.__speed_thresh]])
             elif self.config['label_dimension'] == 'x':
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[trans_vel[0] > self.__speed_thresh,
                                     not trans_vel[0] > self.__speed_thresh and \
                                     not trans_vel[0] < -self.__speed_thresh,
                                     trans_vel[0] < -self.__speed_thresh]])
             elif self.config['label_dimension'] == 'y':
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[trans_vel[1] > self.__speed_thresh,
                                     not trans_vel[1] > self.__speed_thresh and \
                                     not trans_vel[1] < -self.__speed_thresh,
@@ -777,35 +832,35 @@ class takktile_dataloader(object):
             if self.config['label_dimension'] == 'all':
                 if 'radial_slip' in self.config and self.config['radial_slip'] == True:
                     slip = math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) >= self.__speed_thresh
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                     [[not slip, slip]])
                 else:
                     slip = abs(trans_vel[0]) > self.__speed_thresh or \
                             abs(trans_vel[1]) > self.__speed_thresh or \
                             abs(rot_vel) > self.__speed_thresh
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                     [[not slip, slip]])
             elif self.config['label_dimension'] == 'translation':
                 if 'radial_slip' in self.config and self.config['radial_slip'] == True:
                     slip =  math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) >= self.__speed_thresh
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                 [[not slip, slip]])
                 else:
                     slip = abs(trans_vel[0]) > self.__speed_thresh or \
                         abs(trans_vel[1]) > self.__speed_thresh
-                    return self.booleans_to_categorical(
+                    return self.__bool_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'rotation':
                 slip = abs(rot_vel) > self.__speed_thresh
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'x':
                 slip = abs(trans_vel[0]) > self.__speed_thresh
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[not slip, slip]])
             elif self.config['label_dimension'] == 'y':
                 slip = abs(trans_vel[1]) > self.__speed_thresh
-                return self.booleans_to_categorical(
+                return self.__bool_to_categorical(
                                 [[not slip, slip]])
             else:
                 raise ValueError("Invalid label dimension {}".format(self.config['label_dimension']))
@@ -871,9 +926,13 @@ if __name__ == "__main__":
     dataloaders = []
     for dir in data_dirs:
         dataloaders.append(takktile_dataloader(dir, config=config))
-        if not dataloaders[-1].empty():
-            print(dataloaders[-1].get_data_mean())
-            print(dataloaders[-1].get_data_std())
-            print(dataloaders[-1].get_data_min())
-            print(dataloaders[-1].get_data_max())
-            # print(dataloaders[-1].get_slip_idx())
+    if not dataloaders[-1].empty():
+        print(dataloaders[-1].get_data_mean())
+        print(dataloaders[-1].get_data_std())
+        print(dataloaders[-1].get_data_min())
+        print(dataloaders[-1].get_data_max())
+        dataloaders[-1].balance_classes()
+        print(dataloaders[-1].get_valid_idx())
+        print(dataloaders[-1].get_data_class_numbers())
+        print(dataloaders[-1].get_valid_data_class_numbers())
+        # print(dataloaders[-1].get_slip_idx())
