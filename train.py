@@ -228,7 +228,9 @@ def train_net(config):
     data_home = data_config['data_home']
 
     # Create datagenerator Train
-    datagen_train = takktile_datagenerator(config=data_config, augment=takktile_data_augment(data_config, noisy=True))
+    datagen_train = takktile_datagenerator(config=data_config,
+                                           augment=takktile_data_augment(data_config, noisy=True),
+                                           balance = training_config['balance_data'] if 'balance_data' in training_config else False)
 
     # Load data into datagen
     dir_list_train = [data_home + data_config['train_dir']]
@@ -323,7 +325,7 @@ def train_net(config):
 
     # Train Model
     if training_config['regression'] != True:
-        print("Training data distribution: {}".format(datagen_train.class_nums))
+        print("Training data distribution: {}".format(datagen_train.get_class_nums()))
     epochs = int(training_config['epochs'])
     if epochs - training_config['epochs_complete'] > 0:
         # Create Tensorboard callback
@@ -353,8 +355,8 @@ def train_net(config):
         # Compute class weights
         class_weights = []
         if training_config['regression'] != True and training_config['class_weights'] == True:
-            class_weights = np.sum(datagen_train.class_nums)/ \
-                            (datagen_train.class_nums * len(datagen_train.class_nums))
+            class_weights = np.sum(datagen_train.get_class_nums())/ \
+                            (datagen_train.get_class_nums() * len(datagen_train.get_class_nums()))
             # class_weights = np.ones_like(datagen_train.class_ratios) - datagen_train.class_ratios
             # class_weights /= np.min(class_weights)
             class_weights = dict(enumerate(class_weights.tolist()))
@@ -388,7 +390,7 @@ def train_net(config):
     if 'truncate_pressure' in data_config:
         data_config['truncate_pressure'] = tp
 
-    # Create model dorectory for saving test results
+    # Create model directory for saving test results
     if not os.path.isdir(log_models_dir):
         os.mkdir(log_models_dir)
 

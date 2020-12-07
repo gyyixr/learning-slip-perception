@@ -49,7 +49,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, config, augment = None):
+    def __init__(self, config, augment = None, balance=False):
         """ Init function for takktile data generator
 
         Parameters
@@ -83,12 +83,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.series_len = config['series_len']
         self.config = config
         self.augment = augment
+        self.balance_data = balance
 
         if self.transform_type:
             assert self.transform_type == 'standard' or self.transform_type == 'minmax'
-
-        # Reset and prepare data
-        self.on_epoch_end()
 
     ###########################################
     #  API FUNCTIONS
@@ -147,18 +145,23 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         if self.transform_type:
             self.__calculate_data_transforms()
 
-        # Reset and prepare data
-        self.on_epoch_end()
+        # Create Eval Data
         if self.create_eval_data:
             self.eval_len = (self.__len__())//10
             self.create_eval_data = False
 
-        # Calculate class ratios
-        if self.config['label_type'] == 'slip' or self.config['label_type'] == 'direction':
-            self.class_nums = self.dataloaders[0].get_data_class_numbers()
-            for dl in self.dataloaders[1:]:
-                self.class_nums += dl.get_data_class_numbers()
-            self.class_ratios = self.class_nums / float(np.mean(self.class_nums))
+        # Calculate class number and ratios
+        # Also calculate class diffs
+        if not self.config['label_type'] == 'value':
+            self.__class_nums = self.dataloaders[0].get_data_class_numbers(self.__get_data_idx(0))
+            for i, dl in enumerate(self.dataloaders[1:]):
+                self.__class_nums += dl.get_data_class_numbers(self.__get_data_idx(i+1))
+            self.__class_ratios = self.__class_nums / float(np.mean(self.__class_nums))
+            self.__class_diff = np.max(self.__class_nums) - self.__class_nums
+            self.__class_diff = [d if n > 0 else 0 for n,d in zip(self.__class_nums, self.__class_diff)]
+
+        # Reset and prepare data
+        self.on_epoch_end()
 
     def reset_data(self):
         if self.empty():
@@ -166,8 +169,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
         self.dataloaders = []
         self.num_dl = 0
-        self.class_nums = None
-        self.class_ratios = None
+        self.__class_nums = None
+        self.__class_ratios = None
+        self.__class_diff = None
 
     def on_epoch_end(self):
         """ Created iterable list from dataloaders
@@ -187,6 +191,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
         if self.shuffle: # Shuffle dataloader list
             np.random.shuffle(self.dl_idx)
+
+        if self.balance_data:
+            self.__balance_generator_data()
 
     def evaluation_data(self):
         if not self.create_eval_data:
@@ -287,6 +294,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 y = self.transform[1].inverse_transform(outputs)
         return x, y
 
+    def get_class_nums(self):
+        if not self.config['label_type'] == 'value':
+            return self.__class_nums
+        else:
+            eprint("Cannot get class nums during regression tasks")
+            raise NotImplementedError
+
 
     ###########################################
     #  PRIVATE FUNCTIONS
@@ -297,9 +311,9 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         if self.empty():
             return 0
         num = 0
-        for dl_idx in self.dl_data_idx:
-            num += len(dl_idx)
-        real_len = int(num) / self.batch_size
+        for data_idx in self.dl_data_idx:
+            num += len(data_idx)
+        real_len = int(num / self.batch_size)
         return real_len - self.eval_len
 
     def __get_batches(self, batches=[]):
@@ -399,6 +413,30 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             eprint("Unrecognised data mode: {}".format(self.data_mode))
             raise ValueError("Unrecognised data mode")
 
+    def __balance_generator_data(self):
+        if self.config['label_type'] == 'value':
+            eprint("Data Balancing not implemented for regression")
+            return
+
+        diffs = self.__class_diff[:]
+        for i, curr_diff in enumerate(diffs):
+            curr_label = np.zeros(len(diffs))
+            curr_label[i] = 1
+            # print("Filling Label: {}".format(curr_label))
+            for dp in range(curr_diff):
+                found = False
+                while not found:
+                    rand_dl_idx = np.random.choice(self.dl_idx)
+                    rand_dl_data_idx = self.dataloaders[rand_dl_idx].get_random_data_idx_with_label(curr_label)
+                    if not rand_dl_data_idx == None:
+                        # Add random label data to dataloader
+                        self.dl_data_idx[rand_dl_idx].append(rand_dl_data_idx)
+                        if self.shuffle: # Shuffle dataloader data list
+                            np.random.shuffle(self.dl_data_idx[rand_dl_idx])
+                        found = True
+                        # print("Found: {} in {}".format(rand_dl_data_idx, rand_dl_idx))
+
+
     def __set_data_transform(self, transform_type):
         """
         Set one of the acceptable transform types
@@ -478,16 +516,25 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 if __name__ == "__main__":
     config = load_yaml("../configs/base_config_tcn.yaml")
     config = config['data']
-    dg = takktile_datagenerator(config, takktile_data_augment(config))
+    dg = takktile_datagenerator(config, takktile_data_augment(config), balance=False)
+    dg_bal = takktile_datagenerator(config, takktile_data_augment(config), balance=True)
     if dg.empty():
         print("The current Data generator is empty")
     # Load data into datagen
     dir_list = [config['data_home'] + config['train_dir']]
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
+    dg_bal.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
     print("Num Batches: {}".format(len(dg)))
     all_b = dg[4]
     print("Pressure: {}".format(all_b[0][0,0,:]))
     print("Label: {}".format(all_b[1][0,:]))
-    dg.reset_data()
-    if dg.empty():
-        print("Datagen is empty")
+    # dg.reset_data()
+    # if dg.empty():
+    #     print("Datagen is empty")
+    print("\n Data Balancing")
+    print("Class Dist: {}".format(dg.get_class_nums()))
+    print("Unbalanced length: {}".format(len(dg)))
+    print("Balanced length: {}".format(len(dg_bal)))
+    dg_bal.on_epoch_end()
+    print("Balanced length next epoch: {}".format(len(dg_bal)))
+

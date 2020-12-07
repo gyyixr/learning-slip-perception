@@ -123,20 +123,19 @@ test_net ()  {
 # train_100_epochs ./logs/saved_scalers/TCN_20201029-153721/config.yaml # v3 | simple_net | 0.5
 # train_epochs 200 ./logs/models/TCN_20201102-103832/config.yaml # v3 | simple_net | 0.05 | lr0.002 | [24, 24] | combined
 
-#AUG
-# train_epochs 400 ./logs/models/TCN_20201130-182354/config.yaml # v3 | all_data | matt only | both_flip 0.75
-# test_net ./logs/models/TCN_20201130-182354/config.yaml # v3 | all_data | matt only | both_flip 0.75
-# train_epochs 262 ./logs/models/TCN_20201130-204718/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02
-# test_net ./logs/models/TCN_20201130-204718/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02 
-# train_epochs 400 ./logs/models/TCN_20201130-234547/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02 | early_stop | class_weight
-# test_net ./logs/models/TCN_20201130-234547/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02 | early_stop | class_weight
-# train_epochs 400 ./logs/models/TCN_20201201-162803/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 2.0
-# test_net ./logs/models/TCN_20201201-162803/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 2.0
-# train_epochs 400 ./logs/models/TCN_20201201-170034/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 5.0
-# test_net ./logs/models/TCN_20201201-170034/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 5.0
-
 ## Translation Slip Experiments [NEW]
 # test_net ./logs/saved_scalers/TCN_20201029-153721/config.yaml # v3 | simple_net | 0.5
+
+#AUG
+# train_epochs 400 ./logs/models/TCN_20201130-182354/config.yaml # v3 | all_data | matt only | both_flip 0.75
+test_net ./logs/models/TCN_20201130-204718/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02
+# test_net ./logs/models/TCN_20201130-234547/config.yaml # v3 | all_data | matt only | both_flip 0.75 | slip_v 0.02 | early_stop | class_weight
+# train_epochs 400 ./logs/models/TCN_20201201-162803/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 2.0
+# train_epochs 400 ./logs/models/TCN_20201201-170034/config.yaml # v3 | all_data | matt only | both_flip 0.75 | gauss 5.0
+
+# AUG + BALANCING
+# test_net ./logs/models/TCN_20201206-214910/config.yaml # v3 | all_data | matt only | both_flip 0.5 | gauss 1.0
+
 
 ## Translation Direction Experiments [OLD]
 # train_100_epochs ./logs/saved_scalers/TCN_20201021-160416/config.yaml # translation | direction | v1-3 | simple_net
@@ -179,8 +178,7 @@ test_net ()  {
 # train_epochs 400 ./logs/models/TCN_20201201-225311/config.yaml # v3 | slip_data | matt only | both_flip 0.75 | gauss 0.0
 # train_epochs 162 ./logs/models/TCN_20201202-102603/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 1.0
 # train_epochs 98 ./logs/models/TCN_20201202-104746/config.yaml # v3 | slip_data | matt only | both_flip 0.5 | gauss 3.0
-train_epochs 400 ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 3.0
-test_net ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 0.0
+# train_epochs 400 ./logs/models/TCN_20201202-112234/config.yaml # v3 | slip_data | matt only | both_flip-V 0.5 | gauss 3.0
 
 
 ## Translation Direction Experiments [NEW]
