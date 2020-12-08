@@ -38,7 +38,7 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.metrics import mean_squared_error, mean_absolute_error, \
                             classification_report, confusion_matrix, cohen_kappa_score, \
-                            accuracy_score
+                            accuracy_score, precision_recall_curve, roc_curve
 from sklearn.metrics.pairwise import cosine_similarity
 
 from nets import compiled_tcn, compiled_tcn_3D, tcn_full_summary
@@ -49,6 +49,7 @@ from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_au
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
+PROB_THRESH = 0.85
 
 def mean_cosine_similarity(X, Y):
     if not np.shape(X) == np.shape(Y):
@@ -68,7 +69,7 @@ def density_scatter( x , y, ax = None, sort = True, bins = 20, **kwargs )   :
     if ax is None :
         fig , ax = plt.subplots()
     data , x_e, y_e = np.histogram2d( x, y, bins = bins, density = True )
-    z = interpn( ( 0.5*(x_e[1:] + x_e[:-1]) , 0.5*(y_e[1:]+y_e[:-1]) ) , data , np.vstack([x,y]).T , method = "splinef2d", bounds_error = False)
+    z = interpn( ( (x_e[1:] + x_e[:-1])/2 , (y_e[1:]+y_e[:-1])/2 ) , data , np.vstack([x,y]).T , method = "splinef2d", bounds_error = False)
 
     #To be sure to plot all data
     z[np.where(np.isnan(z))] = 0.0
@@ -141,6 +142,68 @@ def plot_classification(x, y,
     plt.axis('equal')
     plt.grid(True)
     plt.legend(title="Classes")
+
+    if not save_location:
+        plt.show(plot)
+    else:
+        assert ".png" in save_location
+        plot.savefig(save_location, dpi=plot.dpi)
+
+def plot_precision_recall_curve(y_true, y_predict,
+                                name="precision vs recall",
+                                save_location=""):
+
+    assert len(y_true) == len(y_predict)
+    precision, recall, thresh = precision_recall_curve(y_true, y_predict)
+
+    plot = plt.figure(figsize=(20, 20))
+    plt.step(recall, precision, color='b', where='post')
+    plt.plot([0,1],[0,1], color='r')
+    plt.title(name)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.axis('equal')
+    plt.grid(True)
+
+    for i,(x,y,z) in enumerate(zip(recall, precision, thresh)):
+        if i % 100 == 0:
+            label = "{:.2f}".format(z)
+            plt.annotate(label, # this is the text
+                        (x,y), # this is the point to label
+                        textcoords="offset points", # how to position the text
+                        xytext=(1, 0), # distance from text to points (x,y)
+                        ha='left')
+
+    if not save_location:
+        plt.show(plot)
+    else:
+        assert ".png" in save_location
+        plot.savefig(save_location, dpi=plot.dpi)
+
+def plot_roc_curve(y_true, y_predict,
+                    name="FPR vs TPR",
+                    save_location=""):
+
+    assert len(y_true) == len(y_predict)
+    fpr, tpr, thresh = roc_curve(y_true, y_predict)
+
+    plot = plt.figure(figsize=(20, 20))
+    plt.step(fpr, tpr, color='b', where='post')
+    plt.plot([0,1],[0,1], color='r')
+    plt.title(name)
+    plt.xlabel("FPR")
+    plt.ylabel("TPR")
+    plt.axis('equal')
+    plt.grid(True)
+
+    for i,(x,y,z) in enumerate(zip(fpr, tpr, thresh)):
+        if i % 100 == 0:
+            label = "{:.2f}".format(z)
+            plt.annotate(label, # this is the text
+                        (x,y), # this is the point to label
+                        textcoords="offset points", # how to position the text
+                        xytext=(1, 0), # distance from text to points (x,y)
+                        ha='left')
 
     if not save_location:
         plt.show(plot)
@@ -238,7 +301,9 @@ def train_net(config):
                                      exclude=data_config['train_data_exclude'])
 
     # Create datagenerator Val
-    datagen_val = takktile_datagenerator(config=data_config, augment=takktile_data_augment(None))
+    datagen_val = takktile_datagenerator(config= data_config, augment=takktile_data_augment(None))
+                                        #  augment= takktile_data_augment(data_config, noisy=True),
+                                        #  balance= training_config['balance_data'] if 'balance_data' in training_config else False)
 
     # Load data into datagen
     dir_list_val = [data_home + data_config['test_dir']]
@@ -386,7 +451,13 @@ def train_net(config):
     if 'truncate_pressure' in data_config:
         tp = data_config['truncate_pressure']
         data_config['truncate_pressure'] = 0
+    ###
+    #  THE MAIN TESTING FUNCTION
+    ###
     x, y, y_predict, vel = test_model(model, datagen_val)
+    ###
+    #  END OF MAIN TESTING FUNCTION
+    ###
     if 'truncate_pressure' in data_config:
         data_config['truncate_pressure'] = tp
 
@@ -477,6 +548,11 @@ def train_net(config):
                             classes=y.argmax(axis=1) == y_predict.argmax(axis=1),
                             name="classification plot (correct)",
                             save_location=log_models_dir + "/classification_plot_all_correct.png")
+        if np.shape(y)[1] == 2:
+            plot_precision_recall_curve(y[:,0], y_predict[:,0], save_location=log_models_dir + "/PR_curve_no_slip.png")
+            plot_precision_recall_curve(y[:,1], y_predict[:,1], save_location=log_models_dir + "/PR_curve_slip.png")
+            plot_roc_curve(y[:,0], y_predict[:,0], save_location=log_models_dir + "/ROC_curve_no_slip.png")
+            plot_roc_curve(y[:,1], y_predict[:,1], save_location=log_models_dir + "/ROC_curve_slip.png")
 
         if 'materials' in data_config and 'test_material' in data_config \
             and data_config['test_material'] == True:
