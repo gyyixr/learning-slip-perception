@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT felt
+data: /home/abhinavg/data/takktile/data-v3
+exclude: ['wood', 'foam', 'coupled', 'rotation', 'matt', 'mat_light']
+Accuracy: 0.923177083333
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0       0.37      0.83      0.51       441
+           1       0.99      0.93      0.96      8775
+
+   micro avg       0.92      0.92      0.92      9216
+   macro avg       0.68      0.88      0.73      9216
+weighted avg       0.96      0.92      0.94      9216
+
+This is the confusion matrix: 
+ [[ 365   76]
+ [ 632 8143]]
+This is the cohen Kappa score: 
+ 0.472658687844

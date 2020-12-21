@@ -49,7 +49,7 @@ from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_au
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
-PROB_THRESH = 0.85
+PROB_THRESH = 0.5
 
 def mean_cosine_similarity(X, Y):
     if not np.shape(X) == np.shape(Y):
@@ -162,11 +162,13 @@ def plot_precision_recall_curve(y_true, y_predict,
     plt.title(name)
     plt.xlabel("Recall")
     plt.ylabel("Precision")
+    plt.xlim((0.5, 1.0))
+    plt.ylim((0.5, 1.0))
     plt.axis('equal')
     plt.grid(True)
 
     for i,(x,y,z) in enumerate(zip(recall, precision, thresh)):
-        if i % 100 == 0:
+        if i % (len(thresh)/int(40)) == 0:
             label = "{:.2f}".format(z)
             plt.annotate(label, # this is the text
                         (x,y), # this is the point to label
@@ -181,23 +183,26 @@ def plot_precision_recall_curve(y_true, y_predict,
         plot.savefig(save_location, dpi=plot.dpi)
 
 def plot_roc_curve(y_true, y_predict,
-                    name="FPR vs TPR",
+                    name="Recall Relationship",
                     save_location=""):
 
     assert len(y_true) == len(y_predict)
     fpr, tpr, thresh = roc_curve(y_true, y_predict)
+    fpr = 1.0 - fpr
 
-    plot = plt.figure(figsize=(20, 20))
+    plot = plt.figure(figsize=(10, 10))
     plt.step(fpr, tpr, color='b', where='post')
     plt.plot([0,1],[0,1], color='r')
     plt.title(name)
-    plt.xlabel("FPR")
-    plt.ylabel("TPR")
+    plt.xlabel("Recall (Static)")
+    plt.ylabel("Recall (Slip)")
     plt.axis('equal')
+    plt.xlim((0.5, 1.0))
+    plt.ylim((0.5, 1.0))
     plt.grid(True)
 
     for i,(x,y,z) in enumerate(zip(fpr, tpr, thresh)):
-        if i % 100 == 0:
+        if i % (len(thresh)/int(40)) == 0:
             label = "{:.2f}".format(z)
             plt.annotate(label, # this is the text
                         (x,y), # this is the point to label
@@ -394,7 +399,7 @@ def train_net(config):
     epochs = int(training_config['epochs'])
     if epochs - training_config['epochs_complete'] > 0:
         # Create Tensorboard callback
-        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers)
+        tensorboard_callback = keras.callbacks.TensorBoard(log_dir=log_scalers, profile_batch=0)
         # Create best model callback (saves the best model based on a metric)
         if training_config['regression'] == True:
             best_metric = 'val_loss'

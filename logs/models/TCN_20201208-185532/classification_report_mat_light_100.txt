@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT mat_light
+data: /home/abhinavg/data/takktile/data-v3
+exclude: ['wood', 'foam', 'coupled', 'rotation', 'matt', 'felt']
+Accuracy: 0.893700132979
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0       0.87      0.92      0.90      6016
+           1       0.92      0.87      0.89      6016
+
+   micro avg       0.89      0.89      0.89     12032
+   macro avg       0.89      0.89      0.89     12032
+weighted avg       0.89      0.89      0.89     12032
+
+This is the confusion matrix: 
+ [[5543  473]
+ [ 806 5210]]
+This is the cohen Kappa score: 
+ 0.787400265957
