@@ -1,0 +1,23 @@
+CLASSIFICATION REPORT
+data: /home/abhinavg/data/takktile/data-v3
+exclude: ['wood', 'foam', 'mat_light', 'coupled', 'rotation', 'combined', 'static', 'curv']
+Accuracy: 0.776674107143
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           1       0.82      0.76      0.79      2411
+           2       0.70      0.81      0.75      1984
+           3       0.86      0.71      0.78      2564
+           4       0.73      0.84      0.78      2001
+
+   micro avg       0.78      0.78      0.78      8960
+   macro avg       0.78      0.78      0.78      8960
+weighted avg       0.79      0.78      0.78      8960
+
+This is the confusion matrix: 
+ [[1843  184  241  143]
+ [  49 1608   37  290]
+ [ 340  197 1828  199]
+ [   5  297   19 1680]]
+This is the cohen Kappa score: 
+ 0.702561916622
