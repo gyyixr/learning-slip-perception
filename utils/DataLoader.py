@@ -220,10 +220,10 @@ class takktile_dataloader(object):
     def size(self):
         if self.empty():
             return 0
-        return int(self.__data['num'])
+        return int(np.shape(self.__data['slip'])[0])
 
     def empty(self):
-        return self.__data['num'] <= self.series_len
+        return int(np.shape(self.__data['slip'])[0]) <= self.series_len
 
     def get_data_class_numbers(self, indices=None):
         """
@@ -544,19 +544,22 @@ class takktile_dataloader(object):
         if idx<0 or idx>=self.size():
             return False
 
-        if self.__get_mode() != FLOW_MODE:
+        if self.__get_mode() == FLOW_MODE:
+            slip_speed = self.__get_slip_speed(idx)
+            slip_vector = self.__get_trans_vel(idx) * slip_speed
+            slip_std = self.__get_slip_std(idx)
+
+            max_dim = [i for i in range(len(slip_vector)) if slip_vector[i]>self.__speed_thresh]
+
+            if (slip_std*SLIP_STD_VALID_MULTIPLIER > slip_vector)[max_dim].any():
+                return False
+
             return True
-
-        slip_speed = self.__get_slip_speed(idx)
-        slip_vector = self.__get_trans_vel(idx) * slip_speed
-        slip_std = self.__get_slip_std(idx)
-
-        max_dim = [i for i in range(len(slip_vector)) if slip_vector[i]>self.__speed_thresh]
-
-        if (slip_std*SLIP_STD_VALID_MULTIPLIER > slip_vector)[max_dim].any():
-            return False
-
-        return True
+        elif self.__get_mode() == VICON_MODE:
+            if self.__get_slip_speed(idx) > 0.3:
+                return False
+            else:
+                return True
 
 
     def __get_data_mean(self):

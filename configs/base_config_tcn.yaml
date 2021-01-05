@@ -13,20 +13,20 @@ data:
     label_dimension: translation # x | y | rotation | translation | all
     label_type: slip # slip | direction | value
     radial_slip: True # slip boundry is circular instead of a square
-    materials: [matt]
-    test_material: False # Enable material testing
+    materials: [matt, felt]
+    test_material: True # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [wood, foam, mat_light, felt, coupled, rotation]
-    train_data_exclude: [wood, foam, mat_light, felt, coupled, rotation]
+    test_data_exclude: [wood, foam, mat_light, coupled, rotation]
+    train_data_exclude: [wood, foam, mat_light, coupled, rotation]
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
-        probability: 0.5
-        input_noise: 1.0  # Gaussian input noise is always on
+        probability: 0.75
+        input_noise: 3.0  # Gaussian input noise is always on
     data_transform:
         type: standard # standard | minmax
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
-        speed: 0.05  #m/s
+        speed: 0.02  #m/s
         angular_speed: 0.5 #rad/s
         flow: 2.5
     histogram:
@@ -59,7 +59,7 @@ training:
     epochs_complete: 0
     regression: False
     class_weights: False
-    balance_data: True
+    balance_data: False
     dropout_rate: 0.2
     kernel_initializer: he_normal
     opt: adam

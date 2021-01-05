@@ -49,7 +49,7 @@ from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_au
 from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
-PROB_THRESH = 0.5
+PROB_THRESH = 0.89
 
 def mean_cosine_similarity(X, Y):
     if not np.shape(X) == np.shape(Y):
