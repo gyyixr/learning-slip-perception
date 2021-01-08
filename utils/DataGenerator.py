@@ -141,6 +141,8 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                 dir_list_.append(d)
 
         self.num_dl = len(self.dataloaders)
+        if self.num_dl <= 0:
+            raise ValueError("{}: Creating empty datagenrator".format(__file__))
 
         if self.transform_type:
             self.__calculate_data_transforms()

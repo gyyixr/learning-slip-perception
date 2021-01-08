@@ -126,7 +126,7 @@ test_net ()  {
 # test_net ./logs/models/TCN_20201209-212419/config.yaml # v3 | all_data | all materials | both_flip 0.75 | gauss 3.0 | 0.05
 # test_net ./logs/models/TCN_20201222-013042/config.yaml # v3 | all_data | all materials | both_flip 0.75 | gauss 3.0 | 0.05
 # train_epochs 200 ./logs/models/TCN_20201223-235045/config.yaml # v3 | all_data | matt and felt | both_flip 0.75 | gauss 5.0 | 0.03
-train_epochs 200 ./logs/models/TCN_20201224-160639/config.yaml # v3 | all_data | matt and felt | both_flip 0.75 | gauss 3.0 | 0.02
+# train_epochs 200 ./logs/models/TCN_20201224-160639/config.yaml # v3 | all_data | matt and felt | both_flip 0.75 | gauss 3.0 | 0.02
 
 #AUG+BALANCING
 # test_net ./logs/models/TCN_20201206-214910/config.yaml # v3 | all_data | matt only | both_flip 0.5 | gauss 1.0
@@ -210,3 +210,20 @@ train_epochs 200 ./logs/models/TCN_20201224-160639/config.yaml # v3 | all_data |
 
 # test_net ./logs/models/TCN3D_20201117-161519/config.yaml # v3 |  0.05 &  0.5 | 2+1D | with last row flipped
 # test_net ./logs/models/TCN3D_20201117-170351/config.yaml # v3 |  0.05 &  0.5 | with last row flipped
+
+
+
+
+
+
+
+
+### NEW DATA v4
+# train_epochs 400 ./logs/models/TCN_20210105-023734/config.yaml
+
+### NEW DATA V5
+## SLIP
+# test_net ./logs/models/TCN_20210107-013213/config.yaml
+
+## Direction
+test_net ./logs/models/TCN_20210107-123615/config.yaml

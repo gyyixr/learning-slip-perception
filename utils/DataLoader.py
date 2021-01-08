@@ -38,6 +38,7 @@ TEMPORAL_DIR_STD = math.pi*3/18   # Error upto 30 degree is allowed (High is len
 VICON_MODE = "vicon"
 IMU_MODE = "imu"
 FLOW_MODE = "flow"
+SERVO_MODE = "servo"
 
 # Transformation CONSTANTS (Legacy)
 SPEED_SCALE = 1.0
@@ -154,7 +155,7 @@ class takktile_dataloader(object):
                    np.array([self.__get_slip_angle(idx), \
                              self.__get_slip_speed(idx)])
         else:
-            press = self.__get_pressure(ret_list).copy()
+            press = self.__get_pressure(idx=idx).copy()
             vel = self.__get_trans_vel(idx=idx).copy()
             ang_vel = self.__get_ang_vel(idx=idx).copy()
             press, vel, ang_vel = self.augment((press, vel, ang_vel))
@@ -165,7 +166,7 @@ class takktile_dataloader(object):
                 press_mean, _ = self.get_data_mean()
                 press[-t:, :] = press_mean
 
-            return press, labels
+            return press[-self.series_len: , :], labels
 
 
     def get_velocity_label(self, idx):
@@ -209,7 +210,7 @@ class takktile_dataloader(object):
 
     def plot_pressure(self):
         all_indices = self.get_all_idx()
-        press = self.__get_pressure(all_indices)
+        press = self.__get_pressure(all_indices)[:,-1,:]
         time = self.__get_time(all_indices)
         self.press_plot = plt.figure(figsize=(10,10))
         plt.plot(time[:500], press[:500,:])
@@ -506,7 +507,7 @@ class takktile_dataloader(object):
 
             # data[i-s] to data[i] is the valid data for index i
             # Current data is only valid if the data series has all valid indices
-            if valid_counter > self.series_len:
+            if valid_counter > 0:
                 # Storing every valid index
                 self.valid_idx.append(idx)
                 # Storing slip and non slip index
@@ -556,10 +557,17 @@ class takktile_dataloader(object):
 
             return True
         elif self.__get_mode() == VICON_MODE:
-            if self.__get_slip_speed(idx) > 0.3:
+            if self.__get_slip_speed(idx) >= 0.3:
                 return False
             else:
                 return True
+        elif self.__get_mode() == SERVO_MODE:
+            if self.__get_slip_speed(idx) >= 0.3:
+                return False
+            else:
+                return True
+        else:
+            return True
 
 
     def __get_data_mean(self):
@@ -577,12 +585,12 @@ class takktile_dataloader(object):
             # Collect the labels
             if self.config['label_type'] == 'value':
                 labels = self.__get_all_labels()
-                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                return np.mean(self.__get_pressure(all_indices)[:,-1,:], axis=0), \
                        np.mean(labels, axis=0)
             else:
                 vel = self.__get_trans_vel(idx=all_indices[0])
                 ang_vel = self.__get_ang_vel(idx=all_indices[0])
-                return np.mean(self.__get_pressure(all_indices), axis=0), \
+                return np.mean(self.__get_pressure(all_indices)[:,-1,:], axis=0), \
                        np.zeros_like(self.__get_label(vel=vel, ang_vel=ang_vel))
 
 
@@ -600,12 +608,12 @@ class takktile_dataloader(object):
             # Collect the labels
             if self.config['label_type'] == 'value':
                 labels = self.__get_all_labels()
-                return np.std(self.__get_pressure(all_indices), axis=0), \
+                return np.std(self.__get_pressure(all_indices)[:,-1,:], axis=0), \
                        np.std(labels, axis=0)
             else:
                 vel = self.__get_trans_vel(idx=all_indices[0])
                 ang_vel = self.__get_ang_vel(idx=all_indices[0])
-                return np.std(self.__get_pressure(all_indices), axis=0), \
+                return np.std(self.__get_pressure(all_indices)[:,-1,:], axis=0), \
                        np.ones_like(self.__get_label(vel=vel, ang_vel=ang_vel))
 
     def __get_data_min(self):
@@ -622,12 +630,12 @@ class takktile_dataloader(object):
             # Collect the labels
             if self.config['label_type'] == 'value':
                 labels = self.__get_all_labels()
-                return np.min(self.__get_pressure(all_indices), axis=0), \
+                return np.min(self.__get_pressure(all_indices)[:, -1, :], axis=0), \
                        np.min(labels, axis=0)
             else:
                 vel = self.__get_trans_vel(idx=all_indices[0])
                 ang_vel = self.__get_ang_vel(idx=all_indices[0])
-                return np.min(self.__get_pressure(all_indices), axis=0), \
+                return np.min(self.__get_pressure(all_indices)[:, -1, :], axis=0), \
                        np.zeros_like(self.__get_label(vel=vel, ang_vel=ang_vel))
 
     def __get_data_max(self):
@@ -644,12 +652,12 @@ class takktile_dataloader(object):
             # Collect the labels
             if self.config['label_type'] == 'value':
                 labels = self.__get_all_labels()
-                return np.max(self.__get_pressure(all_indices), axis=0), \
+                return np.max(self.__get_pressure(all_indices)[:, -1, :], axis=0), \
                        np.max(labels, axis=0)
             else:
                 vel = self.__get_trans_vel(idx=all_indices[0])
                 ang_vel = self.__get_ang_vel(idx=all_indices[0])
-                return np.max(self.__get_pressure(all_indices), axis=0), \
+                return np.max(self.__get_pressure(all_indices)[:, -1, :], axis=0), \
                        np.ones_like(self.__get_label(vel=vel, ang_vel=ang_vel))
 
 
@@ -768,20 +776,21 @@ class takktile_dataloader(object):
                 if 'radial_slip' in self.config and self.config['radial_slip'] == True:
                     slip =  math.sqrt(trans_vel[0]**2 + trans_vel[1]**2) > self.__speed_thresh
                     # [No slip, x+, y+, x-, y-]
-                    return np.array([not slip,
-                                    slip
-                                    and trans_vel[0] > 0
-                                    and abs(trans_vel[0]) > abs(trans_vel[1]),
-                                    slip
-                                    and trans_vel[1] > 0
-                                    and abs(trans_vel[1]) > abs(trans_vel[0]),
-                                    slip
-                                    and trans_vel[0] < 0
-                                    and abs(trans_vel[0]) > abs(trans_vel[1]),
-                                    slip
-                                    and trans_vel[1] < 0
-                                    and abs(trans_vel[1]) > abs(trans_vel[0])],
-                                dtype=float)
+                    num_classes = int(self.config['num_dir_classes']) if 'num_dir_classes' in self.config else 5
+                    angle_delta = 2*np.pi / (num_classes - 1)
+                    angle = math.atan2(trans_vel[1], trans_vel[0]) + np.pi
+                    out_array = [not slip]
+                    out_array.append(slip and
+                                     ((angle >= 0.0 and
+                                     angle < angle_delta/2) or
+                                     (angle >= 2*np.pi - angle_delta/2 and
+                                     angle < 2*np.pi)))
+                    for i in range(1, num_classes - 1):
+                        out_array.append(slip and
+                                         angle >= i*angle_delta - angle_delta/2 and
+                                         angle < (i+1)*angle_delta - angle_delta/2)
+
+                    return np.array(out_array, dtype=float)
                 else:
                     return self.booleans_to_categorical(
                                     [[trans_vel[0] > self.__speed_thresh,

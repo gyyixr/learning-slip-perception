@@ -1,32 +1,32 @@
 # Data config
 data:
-    data_home: /home/abhinavg/data/takktile/data-v3
+    data_home: /home/abhinavg/data/takktile/data-v5
     file_format: mat
     data_format: vector1D #vector1D, vector3D
     series_len: 100
     shuffle: True
     batch_size: 256
-    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+    slip_filter: 4  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
-    test_dir: /val/
+    test_dir: /train/
     label_dimension: translation # x | y | rotation | translation | all
-    label_type: slip # slip | direction | value
+    label_type: direction # slip | direction | value
     radial_slip: True # slip boundry is circular instead of a square
-    materials: [matt, felt]
+    materials: ["5cmps", "7cmps", "10cmps"]
     test_material: True # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [wood, foam, mat_light, coupled, rotation]
-    train_data_exclude: [wood, foam, mat_light, coupled, rotation]
+    test_data_exclude: []
+    train_data_exclude: []
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
-        probability: 0.75
-        input_noise: 3.0  # Gaussian input noise is always on
+        probability: 0.5
+        input_noise: 1.0  # Gaussian input noise is always on
     data_transform:
         type: standard # standard | minmax
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
-        speed: 0.02  #m/s
+        speed: 0.0025  #m/s
         angular_speed: 0.5 #rad/s
         flow: 2.5
     histogram:
@@ -35,6 +35,7 @@ data:
         save: False
     use_pressure_delta: False # the inputs are not pressure delta from the previous values
     truncate_pressure: 0  # int: number of values from the last measurement to randomly truncate
+    num_dir_classes: 9
 
 # Network config
 net:
