@@ -1,2 +1,0 @@
-The mean squares velocity error is: 0.0354842633178 m^2/s^2
-The mean absolute velocity error is: 0.126513484053 m/s 

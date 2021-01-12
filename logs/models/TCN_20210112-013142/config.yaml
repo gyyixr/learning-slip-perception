@@ -1,0 +1,62 @@
+data:
+  augment: {input_noise: 1.0, mode: both_flip, probability: 0.75}
+  batch_size: 256
+  data_format: vector1D
+  data_home: /home/abhinavg/data/takktile/data-v5
+  data_transform:
+    max: !!python/tuple
+    - [208.0, 151.0, 129.0, 95.0, 86.0, 127.0]
+    - [1.0, 1.0]
+    mean: !!python/tuple
+    - [-178.79991959197602, -145.69586599909306, -59.9313960609418, -32.27663632666227,
+      -55.827767882604284, -83.4838599591415]
+    - [0.0, 0.0]
+    min: !!python/tuple
+    - [-491.0, -497.0, -472.0, -458.0, -488.0, -475.0]
+    - [0.0, 0.0]
+    output_mean_zero: true
+    std: !!python/tuple
+    - [190.69390515104422, 179.09874694714026, 138.08822116943904, 99.6210946779273,
+      135.56919146160877, 143.47380138114193]
+    - [1.0, 1.0]
+    type: standard
+  eval_data: false
+  file_format: mat
+  histogram: {create: false, save: false, slip_filter: 1}
+  label_dimension: translation
+  label_type: slip
+  materials: [5cmps, 7cmps, 10cmps]
+  num_dir_classes: 9
+  radial_slip: true
+  series_len: 100
+  shuffle: true
+  slip_filter: 1
+  slip_thresh: {angular_speed: 0.5, flow: 2.5, speed: 0.003}
+  test_data_exclude: []
+  test_dir: /val/
+  test_material: true
+  train_data_exclude: []
+  train_dir: /train/
+  truncate_pressure: 0
+  use_pressure_delta: false
+net:
+  activation: selu
+  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210112-013142/best_model/
+  dilations: [1, 2, 4, 8]
+  kernel_size: 8
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210112-013142
+  name: tcn_takktile
+  nb_filters: 12
+  nb_stacks: 1
+  output_layers: [24, 24]
+  padding: causal
+  return_sequences: false
+  save_last_model: true
+  trained: true
+  type: tcn
+  use_best_model: false
+  use_skip_connections: false
+training: {balance_data: false, class_weights: false, dropout_rate: 0.2, epochs: 0,
+  epochs_complete: 200, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210112-013142,
+  lr: 0.002, opt: adam, regression: false, use_batch_norm: false, use_layer_norm: true,
+  verbosity: 1}

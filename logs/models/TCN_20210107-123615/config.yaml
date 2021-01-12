@@ -1,0 +1,62 @@
+data:
+  augment: {input_noise: 1.0, mode: both_flip, probability: 0.5}
+  batch_size: 256
+  data_format: vector1D
+  data_home: /home/abhinavg/data/takktile/data-v5
+  data_transform:
+    max: !!python/tuple
+    - [91.0, 63.0, 64.0, 18.0, 21.0, 90.0]
+    - [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    mean: !!python/tuple
+    - [-311.745693232402, -132.1574076402686, -0.9852626813872193, 1.5648467167970224,
+      -3.551417146593567, -92.31517994115133]
+    - [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    min: !!python/tuple
+    - [-491.0, -497.0, -261.0, -11.0, -228.0, -475.0]
+    - [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    output_mean_zero: true
+    std: !!python/tuple
+    - [158.80915986047177, 144.88084922770724, 19.70113849838941, 2.903002073400862,
+      21.653126765923204, 109.23370324256592]
+    - [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    type: standard
+  eval_data: false
+  file_format: mat
+  histogram: {create: false, save: false, slip_filter: 1}
+  label_dimension: translation
+  label_type: direction
+  materials: [5cmps, 7cmps, 10cmps]
+  num_dir_classes: 9
+  radial_slip: true
+  series_len: 100
+  shuffle: true
+  slip_filter: 4
+  slip_thresh: {angular_speed: 0.5, flow: 2.5, speed: 0.0025}
+  test_data_exclude: []
+  test_dir: /val/
+  test_material: true
+  train_data_exclude: []
+  train_dir: /train/
+  truncate_pressure: 0
+  use_pressure_delta: false
+net:
+  activation: selu
+  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210107-123615/best_model/
+  dilations: [1, 2, 4, 8]
+  kernel_size: 8
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210107-123615
+  name: tcn_takktile
+  nb_filters: 12
+  nb_stacks: 1
+  output_layers: [24, 24]
+  padding: causal
+  return_sequences: false
+  save_last_model: true
+  trained: true
+  type: tcn
+  use_best_model: false
+  use_skip_connections: false
+training: {balance_data: false, class_weights: false, dropout_rate: 0.2, epochs: 0,
+  epochs_complete: 1200, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210107-123615,
+  lr: 0.002, opt: adam, regression: false, use_batch_norm: false, use_layer_norm: true,
+  verbosity: 1}

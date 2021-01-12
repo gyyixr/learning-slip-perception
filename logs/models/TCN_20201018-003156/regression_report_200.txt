@@ -1,3 +1,0 @@
-The mean squares velocity error is: 0.0161563969543 m^2/s^2
-The mean absolute velocity error is: 0.079607198531 m/s 
-Cosine similarity for velocity is: 0.651081052102
