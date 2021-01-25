@@ -213,17 +213,17 @@ test_net ()  {
 
 
 
-
-
-
-
-
-### NEW DATA v4
-# train_epochs 400 ./logs/models/TCN_20210105-023734/config.yaml
-
 ### NEW DATA V5
 ## SLIP
-# test_net ./logs/models/TCN_20210107-013213/config.yaml
+# test_net ./logs/models/TCN_20210107-013213/config.yaml # translation only
+# test_net ./logs/models/TCN_20210108-015938/config.yaml  # Translation + static
+# train_epochs 400 ./logs/models/TCN_20210111-021920/config.yaml # Translation + release
+# train_epochs 400 ./logs/models/TCN_20210111-022140/config.yaml # Release only
+# train_epochs 200 ./logs/models/TCN_20210112-013142/config.yaml # curve + static + translation (release included)
+# train_epochs 200 ./logs/models/TCN_20210112-013254/config.yaml # curve + translation (release included)
+test_net ./logs/models/TCN_20210113-031807/config.yaml # curve + static +translation (no release)
+# train_epochs 200 ./logs/models/TCN_20210113-031917/config.yaml # curve only (release included)
+
 
 ## Direction
-test_net ./logs/models/TCN_20210107-123615/config.yaml
+# test_net ./logs/models/TCN_20210107-123615/config.yaml # Translation only
