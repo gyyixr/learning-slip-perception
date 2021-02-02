@@ -16,8 +16,8 @@ data:
     materials: [plastic, cylinder, sphere]
     test_material: False # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [foam, rotation]
-    train_data_exclude: [foam, release, rotation]
+    test_data_exclude: [foam, felt, mat]
+    train_data_exclude: [foam, release]
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
         probability: 0.75

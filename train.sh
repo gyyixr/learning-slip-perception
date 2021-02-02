@@ -225,6 +225,8 @@ test_net ()  {
 # train_epochs 200 ./logs/models/TCN_20210113-031917/config.yaml # curve only (release included)
 
 test_net ./logs/models/TCN_20210128-001638/config.yaml # plastic + sphere + cylinder(both) - rotation - release
+test_net ./logs/models/TCN_20210201-225549/config.yaml # plastic + sphere + cylinder(both) + rotation - release
+
 
 ## Direction
 # test_net ./logs/models/TCN_20210107-123615/config.yaml # Translation only

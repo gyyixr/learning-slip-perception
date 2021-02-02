@@ -32,19 +32,19 @@ data:
   shuffle: true
   slip_filter: 1
   slip_thresh: {angular_speed: 0.15, flow: 2.5, speed: 0.003}
-  test_data_exclude: [foam, rotation, felt, mat]
+  test_data_exclude: [foam, felt, mat]
   test_dir: /val/
-  test_material: true
-  train_data_exclude: [foam, release, rotation]
+  test_material: false
+  train_data_exclude: [foam, release]
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
 net:
   activation: selu
-  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210128-001638/best_model/
+  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210201-225549/best_model/
   dilations: [1, 2, 4, 8]
   kernel_size: 8
-  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210128-001638
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210201-225549
   name: tcn_takktile
   nb_filters: 12
   nb_stacks: 1
@@ -57,6 +57,6 @@ net:
   use_best_model: false
   use_skip_connections: false
 training: {balance_data: false, class_weights: false, dropout_rate: 0.2, epochs: 0,
-  epochs_complete: 400, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210128-001638,
+  epochs_complete: 400, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210201-225549,
   lr: 0.002, opt: adam, regression: false, use_batch_norm: false, use_layer_norm: true,
   verbosity: 1}
