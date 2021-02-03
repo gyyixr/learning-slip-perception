@@ -8,7 +8,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K, Sequential, optimizers
 from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.layers import Conv2D, Dense, Flatten, BatchNormalization, Dropout, SpatialDropout2D
+from tensorflow.keras.layers import Conv2D, Dense, Flatten, BatchNormalization, \
+                                    Dropout, SpatialDropout2D, Activation
 
 # Fix for CUDNN failed to init: https://github.com/tensorflow/tensorflow/issues/24828#issuecomment-464910864
 import tensorflow.compat.v1 as tf1
@@ -62,6 +63,8 @@ def freq_model(input_shape,
                              name=name,
                              padding=padding,
                              kernel_initializer=kernel_initializer))
+        if batch_norm:
+            model.add(BatchNormalization())
         if dropout_rate > 0.0:
             model.add(SpatialDropout2D(dropout_rate, name="spacial_dropout_{}".format(i)))
     model.add(Flatten())
@@ -70,9 +73,11 @@ def freq_model(input_shape,
     for j,d in enumerate(dense_layer_num):
         name = "Dense_{}".format(j)
         model.add(Dense(units=d,
-                        activation=activation,
                         name=name,
                         kernel_initializer=kernel_initializer))
+        if batch_norm:
+            model.add(BatchNormalization())
+        model.add(Activation(activation))
         if dropout_rate > 0.0:
             model.add(Dropout(dropout_rate, name="Dropout_dense_{}".format(j)))
     model.add(Dense(num_classes, activation="softmax"))
