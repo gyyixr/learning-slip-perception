@@ -224,7 +224,7 @@ class takktile_dataloader(object):
         return int(np.shape(self.__data['slip'])[0])
 
     def empty(self):
-        return int(np.shape(self.__data['slip'])[0]) <= self.series_len
+        return int(np.shape(self.__data['slip'])[0]) <= 0
 
     def get_data_class_numbers(self, indices=None):
         """

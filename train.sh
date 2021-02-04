@@ -224,9 +224,13 @@ test_net ()  {
 # test_net ./logs/models/TCN_20210113-031807/config.yaml # curve + static +translation (no release)
 # train_epochs 200 ./logs/models/TCN_20210113-031917/config.yaml # curve only (release included)
 
-test_net ./logs/models/TCN_20210128-001638/config.yaml # plastic + sphere + cylinder(both) - rotation - release
-test_net ./logs/models/TCN_20210201-225549/config.yaml # plastic + sphere + cylinder(both) + rotation - release
+# test_net ./logs/models/TCN_20210128-001638/config.yaml # plastic + sphere + cylinder(both) - rotation - release
+# test_net ./logs/models/TCN_20210201-225549/config.yaml # plastic + sphere + cylinder(both) + rotation - release
 
+# train_epochs 20 ./logs/models/FREQ_20210203-191016/config.yaml # plastic + sphere + cylinder(both) - rotation - release (20)
+train_epochs 50 ./logs/models/FREQ_20210203-195045/config.yaml # plastic + sphere + cylinder(both) - rotation - release (100)
+train_epochs 50 ./logs/models/FREQ_20210203-195219/config.yaml # plastic + sphere + cylinder(both) - rotation - release (50)
 
 ## Direction
 # test_net ./logs/models/TCN_20210107-123615/config.yaml # Translation only
+# test_net ./logs/models/TCN_20210203-005213/config.yaml # plastic + sphere + cylinder(both) - rotation - release n

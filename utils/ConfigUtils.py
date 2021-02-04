@@ -81,7 +81,8 @@ def is_config_valid(base_config):
         eprint(" \'dilations\' must always be a list")
         return False
     if isinstance(net_config['nb_filters'], list) and \
-        not len(net_config['nb_filters']) == len(net_config['dilations']):
+        not len(net_config['nb_filters']) == len(net_config['dilations']) and \
+        net_config['type'] != 'freq_net':
         eprint(" \'nb_filters\' list must be the same size as \'dilations\' list")
         return False
     if isinstance(net_config['kernel_size'], list) and \

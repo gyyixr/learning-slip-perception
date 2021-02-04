@@ -33,6 +33,7 @@ import tensorflow as tf
 from DataLoader import takktile_dataloader
 from ConfigUtils import load_yaml
 from DataAugment import takktile_data_augment
+from utils import fft_real
 
 # CONSTANTS
 ALL_VALID = 1
@@ -289,7 +290,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
             x = np.reshape(x, (-1, self.series_len, 6))
         if self.transform_type:
-            if len(inputs) > 0:
+            if len(inputs) > 0 and 'data_format' in self.config and self.config['data_format'] != 'freq_image':
                 for i, inp in enumerate(x):
                     x[i] = self.transform[0].inverse_transform(inp)
             if len(outputs) > 0:
@@ -362,6 +363,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             X = np.reshape(X, (-1,self.series_len,2,3,1))
             X = np.flip(X, 2)
             X[:,:,0,:,:] = np.flip(X[:,:,0,:,:], 2)
+        # Convert to Frequency domain images with fft algorithm
+        elif 'data_format' in self.config and self.config['data_format'] == 'freq_image':
+            X = np.reshape(X, (-1,2,3,self.series_len))
+            fft_len = (np.shape(X)[-1]/2) + 1
+            X = fft_real(X, axis=-1)[:,:,:,:fft_len]
+            X = np.flip(X, 1)
+            X[:,0,:,:] = np.flip(X[:,0,:,:], 1)
         return X, Y
 
     def __get_vel_label_batches(self, batches=[]):

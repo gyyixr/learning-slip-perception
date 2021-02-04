@@ -34,8 +34,6 @@ def freq_model(input_shape,
     assert (isinstance(dense_layer_num, list) or isinstance(dense_layer_num, tuple)) and len(dense_layer_num) > 0
 
     model = Sequential()
-    if dropout_rate > 0.0:
-        model.add(Dropout(dropout_rate, name="dropout_input"))
 
     # CNN
     for i, f in enumerate(cnn_filters_num):
@@ -54,8 +52,7 @@ def freq_model(input_shape,
                              activation=activation,
                              name=name,
                              kernel_initializer=kernel_initializer,
-                             padding="valid",
-                             input_shape=input_shape))
+                             padding="valid"))
         else:
             model.add(Conv2D(filters=f,
                              kernel_size=(3, 3),
@@ -99,5 +96,4 @@ if __name__ == "__main__":
                         padding="same",
                         lr=0.002,
                         activation = "relu")
-    model.build((32, 2,3,10))
     model.summary()

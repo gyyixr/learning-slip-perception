@@ -41,7 +41,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, \
                             accuracy_score, precision_recall_curve, roc_curve
 from sklearn.metrics.pairwise import cosine_similarity
 
-from nets import compiled_tcn, compiled_tcn_3D, tcn_full_summary
+from nets import compiled_tcn, compiled_tcn_3D, tcn_full_summary, freq_model
 from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_augment
 
 
@@ -339,6 +339,10 @@ def train_net(config):
             model = keras.models.load_model(log_best_model)
         else:
             model = keras.models.load_model(log_models_dir)
+        if network_config['type'] == 'tcn': tcn_full_summary(model, expand_residual_blocks=True)
+        elif network_config['type'] == 'tcn3D': tcn_full_summary(model, expand_residual_blocks=True)
+        elif network_config['type'] == 'freq_net': model.summary()
+        else: raise ValueError("Model type not supported: {}".format(network_config['type']))
     else:
         if network_config['type'] == 'tcn':
             # Create TCN model
@@ -362,6 +366,7 @@ def train_net(config):
                                 kernel_initializer=training_config['kernel_initializer'],
                                 output_layers=     output_layers)
             log_models_dir = logdir + "/models/" + "TCN_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+            tcn_full_summary(model, expand_residual_blocks=True)
         elif network_config['type'] == 'tcn3D':
             output_layers = network_config['output_layers'][:]
             output_layers.append(test_y.shape[1])
@@ -383,7 +388,21 @@ def train_net(config):
                                     kernel_initializer=training_config['kernel_initializer'],
                                     output_layers=     output_layers)
             log_models_dir = logdir + "/models/" + "TCN3D_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
-
+            tcn_full_summary(model, expand_residual_blocks=True)
+        elif network_config['type'] == 'freq_net':
+            output_layers = network_config['output_layers'][:]
+            model = freq_model(input_shape=test_x.shape[1:],
+                                num_classes=test_y.shape[1],
+                                cnn_filters_num=network_config['nb_filters'],
+                                dense_layer_num=output_layers,
+                                batch_norm=training_config['use_batch_norm'],
+                                dropout_rate=training_config['dropout_rate'],
+                                kernel_initializer=training_config['kernel_initializer'],
+                                padding=network_config['padding'],
+                                lr=training_config['lr'],
+                                activation = network_config['activation'])
+            log_models_dir = logdir + "/models/" + "FREQ_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
+            model.summary()
         else:
             raise ValueError("Model type not supported: {}".format(network_config['type']))
         # Create logging locations
@@ -391,7 +410,6 @@ def train_net(config):
         training_config['log_scaler_dir'] = log_scalers
         log_best_model = log_models_dir + "/best_model/"
         network_config['best_model_path'] = log_best_model
-    tcn_full_summary(model, expand_residual_blocks=True)
 
     # Train Model
     if training_config['regression'] != True:
@@ -634,5 +652,4 @@ if __name__ == "__main__":
     print("Usage:  train.py <name of yaml config file>")
     config = load_yaml(sys.argv[1])
 
-    if config['net']['type'] == 'tcn' or config['net']['type'] == 'tcn3D':
-        train_net(config)
+    train_net(config)
