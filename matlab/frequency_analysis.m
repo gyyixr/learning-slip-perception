@@ -37,7 +37,7 @@ slip_mat = data_mat.slip;
 % linkaxes([a1 a2],'x')
 
 %% Felt
-data_felt = load('data_felt.mat');
+data_felt = load('data_sphere.mat');
 
 NUM = data_felt.num;
 LEN = 20;%length(data_felt.pressure(1,:,1));
@@ -80,7 +80,7 @@ f = FREQ*(0:(LEN/2))/LEN;
 
 %%% Signal Plot
 figure;
-a1 = subplot(2,1,1);
+a1 = subplot(3,1,1);
 hold on;
 plot(time_felt, pressure_felt(:,end,1));
 plot(time_felt, pressure_felt(:,end,2));
@@ -92,13 +92,12 @@ hold off;
 legend('Sensor 1','Sensor 2','Sensor 3','Sensor 4','Sensor 5','Sensor 6');
 ylabel("Pressure Value")
 
-a2 = subplot(2,1,2);
+a2 = subplot(3,1,2);
 yyaxis left
 plot(time_felt, slip);
 ylim([-0.1 1.1])
 ylabel("Slip Label")
 
-% a3 = subplot(3,1,3);
 yyaxis right
 plot(time_felt, sum(fft_felt(:,2:end,:),[2,3]));
 % hold on;
@@ -113,7 +112,10 @@ title("Vibration Energy 5-50Hz")
 ylabel("Area Under Freq. Curve")
 xlabel("Time(s)")
 
-linkaxes([a1 a2],'x')
+a3 = subplot(3,1,3);
+stft(pressure_felt(:,end,3),FREQ,'Window', hamming(10),'OverlapLength',9,'FFTLength',128, 'FrequencyRange', 'onesided')
+
+linkaxes([a1 a2 a3],'x')
 
 %%% FFT plot
 figure;
@@ -122,9 +124,9 @@ for i = 1:6
     a = subplot(6,1,i);
     A = [A, a];
     hold on;
-    plot(f(2:end), mean(fft_felt_slip(:,2:end,i),1));
-    plot(f(2:end), mean(fft_felt_static(:,2:end,i),1));
-%     bar(f(2:end), [mean(fft_felt_slip(:,2:end,i),1); mean(fft_felt_static(:,2:end,i),1)] );
+    plot(f(1:end), mean(fft_felt_slip(:,1:end,i),1));
+    plot(f(1:end), mean(fft_felt_static(:,1:end,i),1));
+%     bar(f(1:end), [mean(fft_felt_slip(:,1:end,i),1); mean(fft_felt_static(:,2:end,i),1)] );
     legend('slip', 'static');
     hold off;
     grid on;

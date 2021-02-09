@@ -527,24 +527,14 @@ if __name__ == "__main__":
     config = load_yaml("../configs/base_config_tcn.yaml")
     config = config['data']
     dg = takktile_datagenerator(config, takktile_data_augment(config), balance=False)
-    dg_bal = takktile_datagenerator(config, takktile_data_augment(config), balance=True)
     if dg.empty():
         print("The current Data generator is empty")
     # Load data into datagen
     dir_list = [config['data_home'] + config['train_dir']]
     dg.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
-    dg_bal.load_data_from_dir(dir_list=dir_list, exclude=config['train_data_exclude'])
-    print("Num Batches: {}".format(len(dg)))
-    all_b = dg[4]
-    print("Pressure: {}".format(all_b[0][0,0,:]))
-    print("Label: {}".format(all_b[1][0,:]))
-    # dg.reset_data()
-    # if dg.empty():
-    #     print("Datagen is empty")
-    print("\n Data Balancing")
-    print("Class Dist: {}".format(dg.get_class_nums()))
-    print("Unbalanced length: {}".format(len(dg)))
-    print("Balanced length: {}".format(len(dg_bal)))
-    dg_bal.on_epoch_end()
-    print("Balanced length next epoch: {}".format(len(dg_bal)))
+
+    cn = dg.get_class_nums()
+    print("Data distribution: {}".format([cn[0], np.sum(cn[1:])]))
+    print([cn[1] + cn[3] + cn[5] + cn[7], cn[2] + cn[4] + cn[6] + cn[8] ])
+
 

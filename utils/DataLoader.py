@@ -825,7 +825,7 @@ class takktile_dataloader(object):
         elif self.config['label_type'] == 'slip':
             if self.config['label_dimension'] == 'all':
                 if 'radial_slip' in self.config and self.config['radial_slip'] == True:
-                    slip = math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) > self.__speed_thresh
+                    slip = math.sqrt(trans_vel[0]**2 + trans_vel[1]**2) > self.__speed_thresh or abs(rot_vel) > self.__speed_thresh
                     return self.booleans_to_categorical(
                                     [[not slip, slip]])
                 else:
@@ -836,7 +836,7 @@ class takktile_dataloader(object):
                                     [[not slip, slip]])
             elif self.config['label_dimension'] == 'translation':
                 if 'radial_slip' in self.config and self.config['radial_slip'] == True:
-                    slip =  math.sqrt(trans_vel[0]**2 + trans_vel[1]**2 + rot_vel**2) > self.__speed_thresh
+                    slip =  math.sqrt(trans_vel[0]**2 + trans_vel[1]**2) > self.__speed_thresh
                     return self.booleans_to_categorical(
                                 [[not slip, slip]])
                 else:

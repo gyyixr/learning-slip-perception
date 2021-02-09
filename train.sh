@@ -228,9 +228,15 @@ test_net ()  {
 # test_net ./logs/models/TCN_20210201-225549/config.yaml # plastic + sphere + cylinder(both) + rotation - release
 
 # train_epochs 20 ./logs/models/FREQ_20210203-191016/config.yaml # plastic + sphere + cylinder(both) - rotation - release (20)
-train_epochs 50 ./logs/models/FREQ_20210203-195045/config.yaml # plastic + sphere + cylinder(both) - rotation - release (100)
-train_epochs 50 ./logs/models/FREQ_20210203-195219/config.yaml # plastic + sphere + cylinder(both) - rotation - release (50)
+# test_net ./logs/models/FREQ_20210203-195045/config.yaml # plastic + sphere + cylinder(both) - rotation - release (100)
+# test_net ./logs/models/FREQ_20210203-195219/config.yaml # plastic + sphere + cylinder(both) - rotation - release (50)
+
+
+# test_net ./logs/models/TCN_20210205-020314/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 100
+# test_net ./logs/models/TCN_20210205-020531/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 50
+test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release
+
 
 ## Direction
 # test_net ./logs/models/TCN_20210107-123615/config.yaml # Translation only
-# test_net ./logs/models/TCN_20210203-005213/config.yaml # plastic + sphere + cylinder(both) - rotation - release n
+# test_net ./logs/models/TCN_20210203-005213/config.yaml # plastic + sphere + cylinder(both) - rotation - release

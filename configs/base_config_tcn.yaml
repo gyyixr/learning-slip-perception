@@ -6,21 +6,21 @@ data:
     series_len: 100
     shuffle: True
     batch_size: 256
-    slip_filter: 4  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
     test_dir: /val/
     label_dimension: translation # x | y | rotation | translation | all
-    label_type: direction # slip | direction | value
+    label_type: slip # slip | direction | value
     radial_slip: True # slip boundry is circular instead of a square
-    materials: [plastic, cylinder, sphere]
-    test_material: False # Enable material testing
+    materials: [plastic, horizontal, vertical, sphere]
+    test_material: True # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [foam, felt, mat, rotation]
-    train_data_exclude: [foam, release, rotation]
+    test_data_exclude: [foam, rotation]
+    train_data_exclude: [foam, release, rotation, static]
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
-        probability: 0.5
+        probability: 0.75
         input_noise: 5.0  # Gaussian input noise is always on
     data_transform:
         type: standard # standard | minmax
@@ -35,7 +35,7 @@ data:
         save: False
     use_pressure_delta: False # the inputs are not pressure delta from the previous values
     truncate_pressure: 0  # int: number of values from the last measurement to randomly truncate
-    num_dir_classes: 5
+    num_dir_classes: 9
 
 # Network config
 net:
