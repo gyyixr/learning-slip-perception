@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT sphere
+data: /home/abhinavg/data/takktile/data-v5
+exclude: ['foam', 'rotation', 'plastic', 'cylinder']
+Accuracy: 0.888997395833
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0       0.88      0.92      0.90      3299
+           1       0.90      0.86      0.88      2845
+
+   micro avg       0.89      0.89      0.89      6144
+   macro avg       0.89      0.89      0.89      6144
+weighted avg       0.89      0.89      0.89      6144
+
+This is the confusion matrix: 
+ [[3021  278]
+ [ 404 2441]]
+This is the cohen Kappa score: 
+ 0.77609360554

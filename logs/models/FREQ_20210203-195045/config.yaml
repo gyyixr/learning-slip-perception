@@ -57,6 +57,6 @@ net:
   use_best_model: false
   use_skip_connections: 0
 training: {balance_data: false, class_weights: false, dropout_rate: 0.2, epochs: 0,
-  epochs_complete: 50, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210203-195045,
+  epochs_complete: 400, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210203-195045,
   lr: 0.002, opt: adam, regression: false, use_batch_norm: true, use_layer_norm: 0,
   verbosity: 1}
