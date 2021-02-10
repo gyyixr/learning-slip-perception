@@ -25,7 +25,7 @@ data:
   histogram: {create: false, save: false, slip_filter: 1}
   label_dimension: translation
   label_type: slip
-  materials: [plastic, cylinder, sphere]
+  materials: [plastic, horizontal, vertical, sphere]
   num_dir_classes: 9
   radial_slip: true
   series_len: 100
@@ -35,7 +35,7 @@ data:
   test_data_exclude: [foam, felt, mat]
   test_dir: /val/
   test_material: true
-  train_data_exclude: [foam, release]
+  train_data_exclude: [foam, release, static, translation]
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
