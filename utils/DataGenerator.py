@@ -50,7 +50,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
     Note: use load_data_from_dir function to populate data
     """
 
-    def __init__(self, config, augment = None, balance=False):
+    def __init__(self, config, augment = None, balance=False, oversampling=False):
         """ Init function for takktile data generator
 
         Parameters
@@ -85,6 +85,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         self.config = config
         self.augment = augment
         self.balance_data = balance
+        self.oversampling = oversampling
 
         if self.transform_type:
             assert self.transform_type == 'standard' or self.transform_type == 'minmax'
@@ -160,7 +161,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             for i, dl in enumerate(self.dataloaders[1:]):
                 self.__class_nums += dl.get_data_class_numbers(self.__get_data_idx(i+1))
             self.__class_ratios = self.__class_nums / float(np.mean(self.__class_nums))
-            self.__class_diff = np.max(self.__class_nums) - self.__class_nums
+            if self.oversampling:
+                self.__class_diff = np.max(self.__class_nums) - self.__class_nums
+            else:
+                self.__class_diff = self.__class_nums - np.min(self.__class_nums)
             self.__class_diff = [d if n > 0 else 0 for n,d in zip(self.__class_nums, self.__class_diff)]
 
         # Reset and prepare data
@@ -299,6 +303,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
     def get_class_nums(self):
         if not self.config['label_type'] == 'value':
+            ret = self.__class_nums[:]
+            if self.balance_data:
+                if self.oversampling: ret += self.__class_diff
+                else: ret-= self.__class_diff
             return self.__class_nums
         else:
             eprint("Cannot get class nums during regression tasks")
@@ -440,10 +448,14 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
                     rand_dl_data_idx = self.dataloaders[rand_dl_idx].get_random_data_idx_with_label(curr_label)
                     if not rand_dl_data_idx == None:
                         # Add random label data to dataloader
-                        self.dl_data_idx[rand_dl_idx].append(rand_dl_data_idx)
-                        if self.shuffle: # Shuffle dataloader data list
-                            np.random.shuffle(self.dl_data_idx[rand_dl_idx])
-                        found = True
+                        if self.oversampling:
+                            self.dl_data_idx[rand_dl_idx].append(rand_dl_data_idx)
+                            if self.shuffle: # Shuffle dataloader data list
+                                np.random.shuffle(self.dl_data_idx[rand_dl_idx])
+                            found = True
+                        elif rand_dl_data_idx in self.dl_data_idx[rand_dl_idx]:
+                            self.dl_data_idx[rand_dl_idx].remove(rand_dl_data_idx)
+                            found = True
                         # print("Found: {} in {}".format(rand_dl_data_idx, rand_dl_idx))
 
 

@@ -273,7 +273,7 @@ def generate_classification_report(y, y_predict, data_config, title = "EMPTY TIT
     assert np.shape(y) == np.shape(y_predict)
 
     print_string = title + "\n"
-    class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1))
+    class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1), digits=4)
     cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
     ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
     class_accuracy = accuracy_score(y.argmax(axis=1), y_predict.argmax(axis=1))
@@ -306,9 +306,8 @@ def train_net(config):
                                      exclude=data_config['train_data_exclude'])
 
     # Create datagenerator Val
-    datagen_val = takktile_datagenerator(config= data_config, augment=takktile_data_augment(None))
-                                        #  augment= takktile_data_augment(data_config, noisy=True),
-                                        #  balance= training_config['balance_data'] if 'balance_data' in training_config else False)
+    datagen_val = takktile_datagenerator(config= data_config, augment=takktile_data_augment(None),
+                                         balance= training_config['balance_data'] if 'balance_data' in training_config else False)
 
     # Load data into datagen
     dir_list_val = [data_home + data_config['test_dir']]

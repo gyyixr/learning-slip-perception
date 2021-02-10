@@ -234,7 +234,11 @@ test_net ()  {
 
 # test_net ./logs/models/TCN_20210205-020314/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 100
 # test_net ./logs/models/TCN_20210205-020531/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 50
-test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release
+
+# test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release (changed labelling)
+# test_net ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
+# test_net ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
+# test_net ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
 
 
 ## Direction
