@@ -27,14 +27,13 @@ data:
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
         speed: 0.003  #m/s
-        angular_speed: 0.15 #rad/s
+        angular_speed: 0.2 #rad/s
         flow: 2.5
     histogram:
         create: False
         slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
         save: False
     use_pressure_delta: False # the inputs are not pressure delta from the previous values
-    truncate_pressure: 0  # int: number of values from the last measurement to randomly truncate
     num_dir_classes: 9
 
 # Network config

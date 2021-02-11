@@ -5,7 +5,7 @@ train_epochs () {
     REPLACE_STR="epochs: $1"
     sed -i "s/${SEARCH_STR}/${REPLACE_STR}/" $2
 
-    python2.7 train.py $2
+    python2.7 main.py $2
 
     REPLACE_STR="epochs: 0"
     SEARCH_STR="epochs: $1"
@@ -236,8 +236,8 @@ test_net ()  {
 # test_net ./logs/models/TCN_20210205-020531/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 50
 
 # test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release (changed labelling)
-# test_net ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
-# test_net ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
+train_epochs 400 ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
+train_epochs 400 ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
 # test_net ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
 
 

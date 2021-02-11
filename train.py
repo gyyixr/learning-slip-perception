@@ -29,7 +29,6 @@ import numpy as np
 import select
 from datetime import datetime
 import matplotlib.pyplot as plt
-from scipy.stats import gaussian_kde
 from matplotlib import cm
 from matplotlib.colors import Normalize
 from scipy.interpolate import interpn
@@ -46,7 +45,6 @@ from utils import takktile_datagenerator, load_yaml, save_yaml, takktile_data_au
 
 
 #CONSTANTS
-from utils import ALL_VALID, BOTH_SLIP, NO_SLIP, SLIP_TRANS, SLIP_ROT
 CWD = os.path.dirname(os.path.realpath(__file__))
 logdir = CWD + "/logs"
 PROB_THRESH = 0.2
@@ -469,10 +467,6 @@ def train_net(config):
     training_config['epochs_complete'] = epochs if epochs > training_config['epochs_complete'] else training_config['epochs_complete']
     training_config['epochs'] = 0
 
-    # Test on validation data again
-    if 'truncate_pressure' in data_config:
-        tp = data_config['truncate_pressure']
-        data_config['truncate_pressure'] = 0
     ###
     #  THE MAIN TESTING FUNCTION
     ###
@@ -480,8 +474,6 @@ def train_net(config):
     ###
     #  END OF MAIN TESTING FUNCTION
     ###
-    if 'truncate_pressure' in data_config:
-        data_config['truncate_pressure'] = tp
 
     # Create model directory for saving test results
     if not os.path.isdir(log_models_dir):
