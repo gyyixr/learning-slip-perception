@@ -24,12 +24,14 @@ def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 #####################
 import os
+import scipy.io as sio
 
 from utils import takktile_datagenerator, \
                   load_yaml, \
                   save_yaml, \
-                  takktile_data_augment
-from utils.utils import slip_detection_model
+                  takktile_data_augment, \
+                  slip_detection_model
+
 
 def create_train_val_datagen(config):
     data_config = config['data']
@@ -95,8 +97,40 @@ def train_slip_detection(config):
     # Delete all variables
     del datagen_train, datagen_val
 
+def test_slip_detection_time_series(config):
+    data_config = config['data']
+    data_config['shuffle'] = False
+
+    # Create datagenerator
+    datagen = takktile_datagenerator(config=data_config,
+                                     augment=takktile_data_augment(None),
+                                     balance = False)
+
+    # Load data into datagen
+    dir_list_train = [data_config['data_home'] + data_config['series_file']] \
+                     if 'series_file' in data_config else ""
+    print("Using {} for time series test".format(dir_list_train))
+    datagen.load_data_from_dir(dir_list=dir_list_train,
+                               exclude=[])
+
+    # Init Slip detection Network
+    sd = slip_detection_model(config)
+
+    # Run Detection
+    x, labels, preds, v = sd.test_datagen(datagen)
+
+    # Save data
+    log_models_dir = sd.get_model_directory()
+    out_dict = {"inputs": x, "labels": labels, "predictions": preds}
+    sio.savemat( log_models_dir + "/data_time_series.mat", out_dict)
+
+    print("Saving output data in: {}".format(log_models_dir + "/data_time_series.mat"))
+
 if __name__ == "__main__":
     print("Usage:  main.py <name of yaml config file>")
     config = load_yaml(sys.argv[1])
 
-    train_slip_detection(config)
+    if config['data']['time_series'] and config['net']['trained']:
+        test_slip_detection_time_series(config)
+    else:
+        train_slip_detection(config)

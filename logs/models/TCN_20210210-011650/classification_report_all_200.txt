@@ -1,19 +1,19 @@
 CLASSIFICATION REPORT
 data: /home/abhinavg/data/takktile/data-v5
 exclude: ['foam']
-Accuracy: 0.915460149083
+Accuracy: 0.916821961009
 This is the classification report: 
                precision    recall  f1-score   support
 
-           0     0.9104    0.9219    0.9161     13976
-           1     0.9207    0.9090    0.9148     13928
+           0     0.9129    0.9226    0.9178     14035
+           1     0.9208    0.9110    0.9159     13869
 
-   micro avg     0.9155    0.9155    0.9155     27904
-   macro avg     0.9155    0.9154    0.9155     27904
-weighted avg     0.9155    0.9155    0.9155     27904
+   micro avg     0.9168    0.9168    0.9168     27904
+   macro avg     0.9169    0.9168    0.9168     27904
+weighted avg     0.9169    0.9168    0.9168     27904
 
 This is the confusion matrix: 
- [[12885  1091]
- [ 1268 12660]]
+ [[12949  1086]
+ [ 1235 12634]]
 This is the cohen Kappa score: 
- 0.830916107947
+ 0.833627464105

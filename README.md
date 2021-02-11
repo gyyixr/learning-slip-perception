@@ -1,5 +1,2 @@
 # Learning Slip Perception
-Slip perception Keras code. Implements the following methods:
-* TCN
-* GRU
-* LSTM
+This is the training and testing code for slip detection work. It includes an implementation of TCN, and Freq CNN.

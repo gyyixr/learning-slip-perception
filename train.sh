@@ -36,6 +36,20 @@ test_net ()  {
     sed -i "s/${SEARCH_STR}/${REPLACE_STR}/" $1
 }
 
+test_net_time_series () {
+    SEARCH_STR="use_pressure_delta: false"
+    REPLACE_STR="use_pressure_delta: false\n  time_series: true\n  series_file: \/frequency\/takktile_R_felt_1612217219"
+    sed -i -e "s/${SEARCH_STR}/${REPLACE_STR}/" $1
+
+    train_epochs 0 $1
+
+    SEARCH_STR=" time_series: true"
+    SEARCH_STR_1=" series_file: \/frequency\/takktile_R_felt_1612217219"
+    REPLACE_STR=""
+    sed -i -e "s/${SEARCH_STR}/${REPLACE_STR}/" $1
+    sed -i -e "s/${SEARCH_STR_1}/${REPLACE_STR}/" $1
+}
+
 
 ## X Baselines
 # train_100_epochs ./logs/saved_scalers/TCN_20201014-091533/config.yaml # x | slip      | 0.1 | all
@@ -238,7 +252,7 @@ test_net ()  {
 # test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release (changed labelling)
 train_epochs 400 ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
 train_epochs 400 ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
-# test_net ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
+# test_net_time_series ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
 
 
 ## Direction
