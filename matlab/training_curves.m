@@ -3,7 +3,7 @@ clear all;
 close all;
 
 % Read Files
-base_dir = "./models/TCN_20210209-004628/training summary/";
+base_dir = "../logs/models/TCN_20210209-004628/training summary/";
 
 file_val_acc = dir(base_dir + "*accuracy.csv");
 file_val_loss = dir(base_dir + "*loss.csv");
