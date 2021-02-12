@@ -100,6 +100,7 @@ def train_slip_detection(config):
 def test_slip_detection_time_series(config):
     data_config = config['data']
     data_config['shuffle'] = False
+    data_config['batch_size'] = 2
 
     # Create datagenerator
     datagen = takktile_datagenerator(config=data_config,
@@ -107,11 +108,15 @@ def test_slip_detection_time_series(config):
                                      balance = False)
 
     # Load data into datagen
-    dir_list_train = [data_config['data_home'] + data_config['series_file']] \
+    dir_list = [data_config['data_home'] + data_config['series_file']] \
                      if 'series_file' in data_config else ""
-    print("Using {} for time series test".format(dir_list_train))
-    datagen.load_data_from_dir(dir_list=dir_list_train,
+    print("Using {} for time series test".format(dir_list))
+    datagen.load_data_from_dir(dir_list=dir_list,
                                exclude=[])
+
+    # Load training tranformation
+    if config['net']['trained'] == True:
+        datagen.load_data_attributes_from_config()
 
     # Init Slip detection Network
     sd = slip_detection_model(config)
@@ -130,7 +135,7 @@ if __name__ == "__main__":
     print("Usage:  main.py <name of yaml config file>")
     config = load_yaml(sys.argv[1])
 
-    if config['data']['time_series'] and config['net']['trained']:
+    if 'time_series' in config['data'] and config['data']['time_series'] and config['net']['trained']:
         test_slip_detection_time_series(config)
     else:
         train_slip_detection(config)

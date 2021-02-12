@@ -261,7 +261,7 @@ class slip_detection_model:
 
         # Plot results
         self.__plot_classification(vel[:, 0], vel[:, 1],
-                            classes=y_predict.argmax(axis=1),
+                            classes=(y_predict[:, 1] > self.slip_thresh),
                             name="classification plot (predicted)",
                             save_location=self.log_models_dir + "/classification_plot_all_predicted.png")
         self.__plot_classification(vel[:, 0], vel[:, 1],
@@ -269,7 +269,7 @@ class slip_detection_model:
                             name="classification plot (actual)",
                             save_location=self.log_models_dir + "/classification_plot_all_actual.png")
         self.__plot_classification(vel[:, 0], vel[:, 1],
-                            classes=y.argmax(axis=1) == y_predict.argmax(axis=1),
+                            classes=y.argmax(axis=1) == (y_predict[:, 1] > self.slip_thresh),
                             name="classification plot (correct)",
                             save_location=self.log_models_dir + "/classification_plot_all_correct.png")
         if np.shape(y)[1] == 2:
@@ -312,7 +312,7 @@ class slip_detection_model:
 
                 # Plot results
                 self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                                    classes=y_predict_m.argmax(axis=1),
+                                    classes=(y_predict_m[:, 1] > self.slip_thresh),
                                     name="classification plot (predicted)",
                                     save_location=self.log_models_dir + "/classification_plot_{}_predicted.png".format(m))
                 self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
@@ -320,7 +320,7 @@ class slip_detection_model:
                                     name="classification plot (actual)",
                                     save_location=self.log_models_dir + "/classification_plot_{}_actual.png".format(m))
                 self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                                    classes=y_m.argmax(axis=1) == y_predict_m.argmax(axis=1),
+                                    classes=y_m.argmax(axis=1) == (y_predict_m[:, 1] > self.slip_thresh),
                                     name="classification plot (correct)",
                                     save_location=self.log_models_dir + "/classification_plot_{}_correct.png".format(m))
 
@@ -438,10 +438,10 @@ class slip_detection_model:
         assert np.shape(y) == np.shape(y_predict)
 
         print_string = title + "\n"
-        class_matrix = classification_report(y.argmax(axis=1), y_predict.argmax(axis=1), digits=4)
-        cf_matrix = confusion_matrix(y.argmax(axis=1), y_predict.argmax(axis=1))
-        ck_score = cohen_kappa_score(y.argmax(axis=1), y_predict.argmax(axis=1))
-        class_accuracy = accuracy_score(y.argmax(axis=1), y_predict.argmax(axis=1))
+        class_matrix = classification_report(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh), digits=4)
+        cf_matrix = confusion_matrix(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh))
+        ck_score = cohen_kappa_score(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh))
+        class_accuracy = accuracy_score(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh))
         print_string += "data: {}\n".format(self.data_config['data_home'])
         print_string += "exclude: {}\n".format(self.data_config['test_data_exclude'])
         print_string += "Accuracy: {}\n".format(class_accuracy)

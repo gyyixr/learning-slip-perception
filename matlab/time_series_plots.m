@@ -17,7 +17,10 @@ plot(time, prediction,'LineWidth',1.5);
 plot(time([1,end]), 0.5*ones(2), 'black')
 ylabel('Probability of Slip');
 ylim([-0.1, 1.1]);
-legend("Label", "Prediction")
+legend("Label", "Prediction");
 
 xlabel("Time [s]");
 
+pred = prediction > 0.7;
+accuracy = slip == pred;
+sum(accuracy)/length(accuracy)
