@@ -1,0 +1,66 @@
+data:
+  augment: {input_noise: 0.0, mode: both_flip, probability: 0.75}
+  batch_size: 256
+  data_format: freq_image
+  data_home: /home/abhinavg/data/takktile/data-v5
+  data_transform:
+    max: !!python/tuple
+    - [190.0, 205.0, 200.0, 86.0, 163.0, 172.0]
+    - [1.0, 1.0]
+    mean: !!python/tuple
+    - [-120.23603877894399, -59.292306123489524, -14.260446788208986, -19.77182043979576,
+      -55.3415737375356, -60.115907087864464]
+    - [0.0, 0.0]
+    min: !!python/tuple
+    - [-491.0, -497.0, -450.0, -502.0, -484.0, -475.0]
+    - [0.0, 0.0]
+    output_mean_zero: true
+    std: !!python/tuple
+    - [182.69557794988125, 146.49727383805472, 80.06113383707867, 86.96803532354069,
+      140.51852003164973, 143.60834800532226]
+    - [1.0, 1.0]
+    type: standard
+  eval_data: false
+  file_format: mat
+  histogram: {create: false, save: false, slip_filter: 1}
+  label_dimension: translation
+  label_type: slip
+  materials: [plastic, cylinder, sphere]
+  num_dir_classes: 5
+  radial_slip: true
+  series_len: 100
+  shuffle: true
+  slip_filter: 1
+  slip_thresh: {angular_speed: 0.2, flow: 2.5, speed: 0.003}
+  test_data_exclude: [foam]
+  test_dir: /val/
+  test_material: true
+  train_data_exclude: [foam, release]
+  train_dir: /train/
+  truncate_pressure: 0
+  use_pressure_delta: false
+ 
+ 
+ 
+ 
+net:
+  activation: relu
+  best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/utils/../logs/models/FREQ_20210212-011047/best_model/
+  dilations: [0]
+  kernel_size: 1
+  model_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/utils/../logs/models/FREQ_20210212-011047
+  name: freq_net_takktile
+  nb_filters: [50, 20]
+  nb_stacks: 0
+  output_layers: [40, 20]
+  padding: same
+  return_sequences: false
+  save_last_model: true
+  trained: true
+  type: freq_net
+  use_best_model: false
+  use_skip_connections: 0
+training: {balance_data: true, class_weights: false, dropout_rate: 0.2, epochs: 0,
+  epochs_complete: 300, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/utils/../logs/scalars/20210212-011047,
+  lr: 0.002, opt: adam, regression: false, use_batch_norm: true, use_layer_norm: false,
+  verbosity: 1}

@@ -39,6 +39,8 @@ data:
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
+ 
+
 net:
   activation: selu
   best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210210-011925/best_model/
@@ -57,6 +59,6 @@ net:
   use_best_model: false
   use_skip_connections: false
 training: {balance_data: true, class_weights: false, dropout_rate: 0.2, epochs: 0,
-  epochs_complete: 200, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210210-011925,
+  epochs_complete: 400, kernel_initializer: he_normal, log_scaler_dir: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/scalars/20210210-011925,
   lr: 0.002, opt: adam, regression: false, use_batch_norm: false, use_layer_norm: true,
   verbosity: 1}

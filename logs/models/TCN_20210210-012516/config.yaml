@@ -39,6 +39,8 @@ data:
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
+ epochs: 0
+ epochs: 0
 net:
   activation: selu
   best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/logs/models/TCN_20210210-012516/best_model/

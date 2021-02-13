@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT cylinder
+data: /home/abhinavg/data/takktile/data-v5
+exclude: ['foam', 'plastic', 'sphere']
+Accuracy: 0.516741071429
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0     0.5104    0.8631    0.6414      6282
+           1     0.5521    0.1693    0.2591      6262
+
+   micro avg     0.5167    0.5167    0.5167     12544
+   macro avg     0.5312    0.5162    0.4503     12544
+weighted avg     0.5312    0.5167    0.4506     12544
+
+This is the confusion matrix: 
+ [[5422  860]
+ [5202 1060]]
+This is the cohen Kappa score: 
+ 0.0324116903592
