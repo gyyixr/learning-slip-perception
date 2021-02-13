@@ -14,10 +14,11 @@ data:
     label_type: slip # slip | direction | value
     radial_slip: True # slip boundry is circular instead of a square
     materials: [plastic, horizontal, vertical, sphere]
+    speeds: [5cmps, 7cmps, 10cmps]
     test_material: True # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [foam, rotation]
-    train_data_exclude: [foam, release, rotation, static]
+    test_data_exclude: [foam]
+    train_data_exclude: [foam, release]
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
         probability: 0.75
@@ -59,7 +60,7 @@ training:
     epochs_complete: 0
     regression: False
     class_weights: False
-    balance_data: False
+    balance_data: True
     dropout_rate: 0.2
     kernel_initializer: he_normal
     opt: adam

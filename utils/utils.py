@@ -126,7 +126,7 @@ class slip_detection_model:
                 tcn_full_summary(self.__model, expand_residual_blocks=True)
             elif self.network_config['type'] == 'freq_net':
                 output_layers = self.network_config['output_layers'][:]
-                self.__model = freq_model(input_shape=(2,3,self.data_config['series_len']),
+                self.__model = freq_model(input_shape=(2,3,self.data_config['series_len']/2+1),
                                     num_classes=num_classes,
                                     cnn_filters_num=self.network_config['nb_filters'],
                                     dense_layer_num=output_layers,

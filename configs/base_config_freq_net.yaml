@@ -3,7 +3,7 @@ data:
     data_home: /home/abhinavg/data/takktile/data-v5
     file_format: mat
     data_format: freq_image
-    series_len: 50
+    series_len: 100
     shuffle: True
     batch_size: 256
     slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
@@ -16,8 +16,8 @@ data:
     materials: [plastic, cylinder, sphere]
     test_material: True # Enable material testing
     # Note: slip dimension is a binary label and doesn't care about label_type
-    test_data_exclude: [foam, rotation]
-    train_data_exclude: [foam, release, rotation]
+    test_data_exclude: [foam]
+    train_data_exclude: [foam, release]
     augment:
         mode: both_flip # none | h_flip | v_flip | both_flip
         probability: 0.75
@@ -27,7 +27,7 @@ data:
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
         speed: 0.003  #m/s
-        angular_speed: 0.15 #rad/s
+        angular_speed: 0.2 #rad/s
         flow: 2.5
     histogram:
         create: False
@@ -60,15 +60,11 @@ training:
     epochs_complete: 0
     regression: False
     class_weights: False
-    balance_data: False
+    balance_data: True
     dropout_rate: 0.2
     kernel_initializer: he_normal
     opt: adam
     lr: 0.002
     use_batch_norm: True # Fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
-    use_layer_norm: 0
+    use_layer_norm: False
     verbosity: 1 #0: Suppress chatty output
-
-
-
-

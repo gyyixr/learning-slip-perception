@@ -25,7 +25,16 @@ test_net ()  {
     REPLACE_STR="save_last_model: false"
     sed -i "s/${SEARCH_STR}/${REPLACE_STR}/" $1
 
+    SEARCH_STR="balance_data: true"
+    REPLACE_STR="balance_data: false"
+    sed -i "s/${SEARCH_STR}/${REPLACE_STR}/" $1
+
     train_epochs 0 $1
+
+
+    SEARCH_STR="balance_data: false"
+    REPLACE_STR="balance_data: true"
+    sed -i "s/${SEARCH_STR}/${REPLACE_STR}/" $1
 
     REPLACE_STR="use_best_model: false"
     SEARCH_STR="use_best_model: true"
@@ -250,10 +259,12 @@ test_net_time_series () {
 # test_net ./logs/models/TCN_20210205-020531/config.yaml # plastic + sphere + cylinder(both) - rotation - release | complex network | 50
 
 # test_net ./logs/models/TCN_20210209-004628/config.yaml # plastic + sphere + cylinder(both) - rotation - release (changed labelling)
-# train_epochs 400 ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
-# train_epochs 400 ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
+# test_net ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
+# test_net ./logs/models/TCN_20210210-011925/config.yaml # plastic + sphere + cylinder(both) - rotation + static + data balancing (changed labelling)
+# test_net ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
+
 test_net ./logs/models/TCN_20210210-011650/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling)
-# test_net_time_series ./logs/models/TCN_20210210-012516/config.yaml # plastic + sphere + cylinder(both) + rotation (changed labelling)
+test_net ./logs/models/FREQ_20210212-011047/config.yaml # plastic + sphere + cylinder(both) + rotation + static + data balancing (changed labelling) (100)
 
 
 ## Direction
