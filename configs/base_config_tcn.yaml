@@ -10,7 +10,7 @@ data:
     eval_data: False # Whether or not to create eval data
     train_dir: /train/
     test_dir: /val/
-    label_dimension: translation # x | y | rotation | translation | all
+    label_dimension: all # x | y | rotation | translation | all
     label_type: slip # slip | direction | value
     radial_slip: True # slip boundry is circular instead of a square
     materials: [plastic, horizontal, vertical, sphere]
@@ -28,7 +28,7 @@ data:
         output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
     slip_thresh:
         speed: 0.003  #m/s
-        angular_speed: 0.2 #rad/s
+        angular_speed: 0.15 #rad/s
         flow: 2.5
     histogram:
         create: False

@@ -251,7 +251,7 @@ class slip_detection_model:
         x, y, y_predict, vel = self.test_datagen(datagen_val)
 
         # Evaluation Metrics
-        print_string = self.__generate_classification_report(y, y_predict, "CLASSIFICATION REPORT")
+        print_string = self.__generate_classification_report(y, y_predict, self.data_config['test_data_exclude'],"CLASSIFICATION REPORT")
         print(print_string)
 
         # Save Report
@@ -286,12 +286,11 @@ class slip_detection_model:
                 exclude = self.data_config['test_data_exclude'][:]
                 mats = materials[:]
                 mats.remove(m)
-                self.data_config['test_data_exclude'].extend(mats)
 
                 # create datagenerator
                 datagen_val.reset_data()
                 datagen_val.load_data_from_dir(dir_list=dir_list_val,
-                                            exclude=self.data_config['test_data_exclude'])
+                                                exclude=exclude+mats)
                 datagen_val.load_data_attributes_from_config()
                 if datagen_val.empty():
                     eprint("Empty datagenerator for material: {}".format(m))
@@ -299,8 +298,7 @@ class slip_detection_model:
 
                 # Test on validation data again
                 x_m, y_m, y_predict_m, vel_m = self.test_datagen(datagen_val)
-                print_string = self.__generate_classification_report(y_m, y_predict_m, "CLASSIFICATION REPORT {}".format(m))
-                self.data_config['test_data_exclude'] = exclude[:]
+                print_string = self.__generate_classification_report(y_m, y_predict_m, exclude+mats,"CLASSIFICATION REPORT {}".format(m))
 
                 # Display on STDOUT
                 print(print_string)
@@ -310,19 +308,44 @@ class slip_detection_model:
                     as text_file:
                     text_file.write(print_string)
 
-                # Plot results
-                self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                                    classes=(y_predict_m[:, 1] > self.slip_thresh),
-                                    name="classification plot (predicted)",
-                                    save_location=self.log_models_dir + "/classification_plot_{}_predicted.png".format(m))
-                self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                                    classes=y_m.argmax(axis=1),
-                                    name="classification plot (actual)",
-                                    save_location=self.log_models_dir + "/classification_plot_{}_actual.png".format(m))
-                self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                                    classes=y_m.argmax(axis=1) == (y_predict_m[:, 1] > self.slip_thresh),
-                                    name="classification plot (correct)",
-                                    save_location=self.log_models_dir + "/classification_plot_{}_correct.png".format(m))
+                if 'speeds' in self.data_config:
+                    for s in self.data_config['speeds']:
+                        speeds = self.data_config['speeds'][:]
+                        speeds.remove(s)
+
+                        # create datagenerator
+                        datagen_val.reset_data()
+                        datagen_val.load_data_from_dir(dir_list=dir_list_val,
+                                                        exclude=exclude+mats+speeds)
+                        datagen_val.load_data_attributes_from_config()
+                        if datagen_val.empty():
+                            eprint("Empty datagenerator for material {} and speed {}".format(m, s))
+                            continue
+
+                        # Test on validation data again
+                        x_m, y_m, y_predict_m, vel_m = self.test_datagen(datagen_val)
+                        print_string = self.__generate_classification_report(y_m, y_predict_m, exclude+mats+speeds,"CLASSIFICATION REPORT {} {}".format(m, s))
+
+                        # Display on STDOUT
+                        print(print_string)
+
+                        # Save Report
+                        with open(self.log_models_dir + "/classification_report_{}_ {}_{}.txt".format(m, s, self.training_config['epochs_complete']), "w") \
+                            as text_file:
+                            text_file.write(print_string)
+                # # Plot results
+                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                #                     classes=(y_predict_m[:, 1] > self.slip_thresh),
+                #                     name="classification plot (predicted)",
+                #                     save_location=self.log_models_dir + "/classification_plot_{}_predicted.png".format(m))
+                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                #                     classes=y_m.argmax(axis=1),
+                #                     name="classification plot (actual)",
+                #                     save_location=self.log_models_dir + "/classification_plot_{}_actual.png".format(m))
+                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                #                     classes=y_m.argmax(axis=1) == (y_predict_m[:, 1] > self.slip_thresh),
+                #                     name="classification plot (correct)",
+                #                     save_location=self.log_models_dir + "/classification_plot_{}_correct.png".format(m))
 
     def get_model_directory(self):
         return self.log_models_dir
@@ -429,7 +452,7 @@ class slip_detection_model:
             assert ".png" in save_location
             plot.savefig(save_location, dpi=plot.dpi)
 
-    def __generate_classification_report(self, y, y_predict,
+    def __generate_classification_report(self, y, y_predict, exclude,
                                        title = "EMPTY TITLE"):
         if len(y) == 0 or len(y_predict) == 0:
             eprint("Cannot generate classification results with empty arrrays")

@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT sphere 7cmps
+data: /home/abhinavg/data/takktile/data-v5
+exclude: ['foam']
+Accuracy: 0.879774305556
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0     0.9017    0.8702    0.8857      2466
+           1     0.8564    0.8908    0.8732      2142
+
+   micro avg     0.8798    0.8798    0.8798      4608
+   macro avg     0.8790    0.8805    0.8795      4608
+weighted avg     0.8806    0.8798    0.8799      4608
+
+This is the confusion matrix: 
+ [[2146  320]
+ [ 234 1908]]
+This is the cohen Kappa score: 
+ 0.758989627092

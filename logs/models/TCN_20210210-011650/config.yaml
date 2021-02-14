@@ -23,7 +23,7 @@ data:
   eval_data: false
   file_format: mat
   histogram: {create: false, save: false, slip_filter: 1}
-  label_dimension: translation
+  label_dimension: all
   label_type: slip
   materials: [plastic, horizontal, vertical, sphere]
   num_dir_classes: 9
@@ -31,11 +31,12 @@ data:
   series_len: 100
   shuffle: true
   slip_filter: 1
-  slip_thresh: {angular_speed: 0.2, flow: 2.5, speed: 0.003}
+  slip_thresh: {angular_speed: 0.15, flow: 2.5, speed: 0.003}
+  speeds: [5cmps, 7cmps, 10cmps]
   test_data_exclude: [foam]
   test_dir: /val/
   test_material: true
-  train_data_exclude: [foam, release]
+  train_data_exclude: [foam, release, translation, rotation]
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
