@@ -370,6 +370,29 @@ class takktile_dataloader(object):
             return []
         return copy.copy(self.no_slip_stream_idx)
 
+    def get_major_slip_idx(self):
+        """
+        Return indices without any oblique axes slip
+        Oblique axes are the slanted ones
+        """
+        if self.empty():
+            return []
+        valid =  copy.copy(self.valid_idx)
+        ret = [r for r in valid if r not in self.oblique_slip_idx]
+        return ret
+
+    def get_oblique_slip_idx(self):
+        """
+        Return indices without any major axes slip
+        Oblique axes are the slanted ones
+        """
+        if self.empty():
+            return []
+        valid =  copy.copy(self.valid_idx)
+        ret = [r for r in valid if r not in self.major_slip_idx]
+        return ret
+
+
     ###########################################
     #  PRIVATE FUNCTIONS
     ###########################################
@@ -473,11 +496,26 @@ class takktile_dataloader(object):
         self.no_slip_stream_idx = [] #  No slip in data[idx-len+1]->data[idx]
         self.slip_stream_idx = []    #  Slip in data[idx-len+1]->data[idx]
 
+        self.major_slip_idx = []          # indixes with slip along major axes
+        self.oblique_slip_idx = []       # indices with slip along oblique axes
+
         valid_counter = 0 # Counts the trail of valid idx
         slip_counter = 0  # Counts the trail of trans slip only idx
         rot_counter = 0   # counts the trail of rot slip only idx
         no_slip_counter = 0 # counts the trail of coupled slip idx
         # Iterate over each datapoint
+
+        # Change label to translation direction
+        # Doing this for major vs oblique axes
+        ld = self.config['label_dimension']
+        self.config['label_dimension'] = 'translation'
+        lt = self.config['label_type']
+        self.config['label_type'] = 'direction'
+        nc = 1
+        if 'num_dir_classes' in self.config:
+            nc = self.config['num_dir_classes']
+            self.config['num_dir_classes'] = 9
+
         for idx in range(self.size()):
             if self.__is_valid(idx):
                 valid_counter += 1
@@ -526,6 +564,18 @@ class takktile_dataloader(object):
                     # temporal_std_dir = np.std(self.__get_slip_angle(range(idx+1-self.series_len, idx+1)))
                     # if temporal_std_dir < TEMPORAL_DIR_STD:
                     self.slip_stream_idx.append(idx)
+
+                # Save major axes slip idx and oblique axes slip idx\
+                label = np.argmax(self.__get_labels([idx]))
+                if label == 1 or label == 3 or label == 5 or label == 7:
+                    self.major_slip_idx.append(idx)
+                elif label == 2 or label == 4 or label == 6 or label == 8:
+                    self.oblique_slip_idx.append(idx)
+        # Restore Changes
+        self.config['label_dimension'] = ld
+        self.config['label_type'] = lt
+        if 'num_dir_classes' in self.config:
+            self.config['num_dir_classes'] = nc
 
     def __is_valid(self, idx):
         """

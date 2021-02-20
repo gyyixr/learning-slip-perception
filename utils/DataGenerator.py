@@ -33,7 +33,7 @@ import tensorflow as tf
 from DataLoader import takktile_dataloader
 from ConfigUtils import load_yaml
 from DataAugment import takktile_data_augment
-# from utils import fft_real
+from utils import fft_real
 
 # CONSTANTS
 ALL_VALID = 1
@@ -41,6 +41,8 @@ BOTH_SLIP = 2
 NO_SLIP = 3
 SLIP_TRANS = 4
 SLIP_ROT = 5
+MAJOR_TRANS = 6
+OBLIQUE_TRANS = 7
 
 
 class takktile_datagenerator(tf.keras.utils.Sequence):
@@ -427,6 +429,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             return self.dataloaders[dl_id].get_slip_idx()
         elif self.data_mode == SLIP_ROT:
             return self.dataloaders[dl_id].get_rot_idx()
+        elif self.data_mode == MAJOR_TRANS:
+            return self.dataloaders[dl_id].get_major_slip_idx()
+        elif self.data_mode == OBLIQUE_TRANS:
+            return self.dataloaders[dl_id].get_oblique_slip_idx()
         else:
             eprint("Unrecognised data mode: {}".format(self.data_mode))
             raise ValueError("Unrecognised data mode")
@@ -536,7 +542,7 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-    config = load_yaml("../configs/base_config_tcn.yaml")
+    config = load_yaml("./configs/base_config_tcn.yaml")
     config = config['data']
     dg = takktile_datagenerator(config, takktile_data_augment(config), balance=False)
     if dg.empty():

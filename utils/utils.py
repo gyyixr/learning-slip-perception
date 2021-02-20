@@ -466,7 +466,7 @@ class slip_detection_model:
         ck_score = cohen_kappa_score(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh))
         class_accuracy = accuracy_score(y.argmax(axis=1), (y_predict[:, 1] > self.slip_thresh))
         print_string += "data: {}\n".format(self.data_config['data_home'])
-        print_string += "exclude: {}\n".format(self.data_config['test_data_exclude'])
+        print_string += "exclude: {}\n".format(exclude)
         print_string += "Accuracy: {}\n".format(class_accuracy)
         print_string += "This is the classification report: \n {}\n".format(class_matrix)
         print_string += "This is the confusion matrix: \n {}\n".format(cf_matrix)
