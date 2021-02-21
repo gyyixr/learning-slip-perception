@@ -1,0 +1,75 @@
+# Data config
+data:
+    data_home: /home/abhinavg/data/takktile/data-v5
+    file_format: mat
+    data_format: freq_power
+    series_len: 100
+    shuffle: True
+    batch_size: 256
+    slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5 | MAJOR_TRANS = 6 | OBLIQUE_TRANS = 7
+    eval_data: False # Whether or not to create eval data
+    train_dir: /train/
+    test_dir: /val/
+    label_dimension: all # x | y | rotation | translation | all
+    label_type: slip # slip | direction | value
+    radial_slip: True # slip boundry is circular instead of a square
+    materials: [plastic, horizontal, vertical, sphere]
+    speeds: [5cmps, 7cmps, 10cmps]
+    test_material: False # Enable material testing
+    # Note: slip dimension is a binary label and doesn't care about label_type
+    test_data_exclude: [foam]
+    train_data_exclude: [foam, release, plastic, horizontal, vertical]
+    augment:
+        mode: none # none | h_flip | v_flip | both_flip
+        probability: 0.75
+        input_noise: 0.0  # Gaussian input noise is always on
+    data_transform:
+        type: standard # standard | minmax
+        output_mean_zero: True # This forces the calculated data mean to be 0 #Only use for for standard
+    slip_thresh:
+        speed: 0.003  #m/s
+        angular_speed: 0.15 #rad/s
+        flow: 2.5
+    histogram:
+        create: False
+        slip_filter: 1  # ALL_VALID = 1 | BOTH_SLIP = 2 | NO_SLIP = 3 | SLIP_TRANS = 4 | SLIP_ROT = 5
+        save: False
+    use_pressure_delta: False # the inputs are not pressure delta from the previous values
+    num_dir_classes: 9
+
+# Network config
+net:
+    trained: False
+    type: freq_thresh
+    nb_filters: 12
+    kernel_size: 8
+    dilations: [1, 2, 4, 8]
+    nb_stacks: 1
+    return_sequences: False
+    name: tcn_takktile
+    output_layers: [24, 24] # The final layer size is added by code
+    padding: causal
+    use_skip_connections: False
+    activation: selu
+    use_best_model: False
+    save_last_model: True
+    slip_thresh: 11000.0
+
+# training config
+training:
+    epochs: 0 # How many epochs to train for
+    epochs_complete: 0
+    regression: False
+    class_weights: False
+    balance_data: True
+    dropout_rate: 0.2
+    kernel_initializer: he_normal
+    opt: adam
+    lr: 0.002
+    use_batch_norm: False # Fix: https://github.com/tensorflow/tensorflow/issues/32477#issuecomment-574407290
+    use_layer_norm: True
+    verbosity: 1 #0: Suppress chatty output
+
+
+
+

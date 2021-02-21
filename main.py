@@ -97,6 +97,30 @@ def train_slip_detection(config):
     # Delete all variables
     del datagen_train, datagen_val
 
+def train_slip_detection_freq_thresh(config):
+
+    # Create Data Generators
+    datagen_train, datagen_val = create_train_val_datagen(config)
+
+    # Init Slip detection Network
+    sd = slip_detection_model(config)
+
+    # Generate Train Reports
+    sd.generate_and_save_test_report(datagen_train, create_plots=False)
+    # for i in range(20):
+    #     sd.model += 200
+    #     sd.generate_and_save_test_report(datagen_train, create_plots=False)
+
+    # Generate Test Reports
+    sd.generate_and_save_test_report(datagen_val, create_plots=False)
+
+    # Save config
+    log_models_dir = sd.get_model_directory()
+    save_yaml(config, log_models_dir + "/config.yaml")
+
+    # Delete all variables
+    del datagen_train, datagen_val
+
 def test_slip_detection_time_series(config):
     data_config = config['data']
     data_config['shuffle'] = False
@@ -137,5 +161,7 @@ if __name__ == "__main__":
 
     if 'time_series' in config['data'] and config['data']['time_series'] and config['net']['trained']:
         test_slip_detection_time_series(config)
+    elif config['net']['type'] == 'freq_thresh':
+        train_slip_detection_freq_thresh(config)
     else:
         train_slip_detection(config)

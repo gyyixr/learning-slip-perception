@@ -65,7 +65,7 @@ class slip_detection_model:
         # Extract data home
         self.data_home = self.data_config['data_home']
 
-        if self.network_config['trained'] == True:
+        if self.network_config['trained'] == True and self.network_config['type'] != 'freq_thresh':
             # Load Model
             self.log_models_dir = self.network_config['model_dir']
             self.log_scalers = self.training_config['log_scaler_dir']
@@ -78,7 +78,7 @@ class slip_detection_model:
             elif self.network_config['type'] == 'tcn3D': tcn_full_summary(self.__model, expand_residual_blocks=True)
             elif self.network_config['type'] == 'freq_net': self.__model.summary()
             else: raise ValueError("Model type not supported: {}".format(self.network_config['type']))
-        else:
+        elif self.network_config['type'] != 'freq_thresh':
             if self.network_config['type'] == 'tcn':
                 # Create TCN self.__model
                 output_layers = self.network_config['output_layers'][:]
@@ -145,6 +145,11 @@ class slip_detection_model:
             self.training_config['log_scaler_dir'] = self.log_scalers
             self.log_best_model = self.log_models_dir + "/best_model/"
             self.network_config['best_model_path'] = self.log_best_model
+
+        if self.network_config['type'] == 'freq_thresh':
+            # Storing slip threshold in model
+            self.model = self.network_config['slip_thresh'] if 'slip_thresh' in self.network_config else 0.0
+            self.log_models_dir = logdir + "/models/" + "FREQ_Thresh_" +  datetime.now().strftime("%Y%m%d-%H%M%S")
 
         # Create model directory for saving test results
         if not os.path.isdir(self.log_models_dir):
@@ -214,7 +219,7 @@ class slip_detection_model:
         # test Model
         x_test, y_test, vel_test = datagen.get_all_batches()
         y_predict = self.test_data(data=x_test)
-        x_test, y_test = datagen.get_inverse_transform(inputs= x_test,\
+        x_test, y_test = datagen.get_inverse_transform(inputs=x_test,\
                                                        outputs=y_test)
         _, y_predict = datagen.get_inverse_transform(outputs=y_predict)
 
@@ -222,7 +227,11 @@ class slip_detection_model:
 
     def test_data(self, data):
         # test Model
-        y = self.__model.predict(x=data, batch_size=self.data_config['batch_size'])
+        y = []
+        if self.network_config['type'] == 'freq_thresh':
+            y = np.array([data <= self.model, data > self.model]).transpose()
+        else:
+            y = self.__model.predict(x=data, batch_size=self.data_config['batch_size'])
         return y
 
     def save_model(self):
@@ -246,12 +255,20 @@ class slip_detection_model:
             else:
                 print("\nWARNING: Last model not saved\n")
 
-    def generate_and_save_test_report(self, datagen_val):
+    def generate_and_save_test_report(self, datagen_val, create_plots=True):
 
         x, y, y_predict, vel = self.test_datagen(datagen_val)
 
         # Evaluation Metrics
         print_string = self.__generate_classification_report(y, y_predict, self.data_config['test_data_exclude'],"CLASSIFICATION REPORT")
+
+        if self.network_config['type'] == 'freq_thresh':
+            # Find average power of slip and static label
+            static_mean_power = np.mean(x[y[:,0]>0.0])
+            slip_mean_power = np.mean(x[y[:,1]>0.0])
+            print_string += "\n\n[LOG] Model: {0} Mean power: Static {1:.3f}, Slip {2:.3f}"\
+                                .format(self.model, static_mean_power, slip_mean_power)
+
         print(print_string)
 
         # Save Report
@@ -260,23 +277,24 @@ class slip_detection_model:
             text_file.write(print_string)
 
         # Plot results
-        self.__plot_classification(vel[:, 0], vel[:, 1],
-                            classes=(y_predict[:, 1] > self.slip_thresh),
-                            name="classification plot (predicted)",
-                            save_location=self.log_models_dir + "/classification_plot_all_predicted.png")
-        self.__plot_classification(vel[:, 0], vel[:, 1],
-                            classes=y.argmax(axis=1),
-                            name="classification plot (actual)",
-                            save_location=self.log_models_dir + "/classification_plot_all_actual.png")
-        self.__plot_classification(vel[:, 0], vel[:, 1],
-                            classes=y.argmax(axis=1) == (y_predict[:, 1] > self.slip_thresh),
-                            name="classification plot (correct)",
-                            save_location=self.log_models_dir + "/classification_plot_all_correct.png")
-        if np.shape(y)[1] == 2:
-            self.__plot_precision_recall_curve(y[:,0], y_predict[:,0], save_location=self.log_models_dir + "/PR_curve_no_slip.png")
-            self.__plot_precision_recall_curve(y[:,1], y_predict[:,1], save_location=self.log_models_dir + "/PR_curve_slip.png")
-            self.__plot_roc_curve(y[:,0], y_predict[:,0], save_location=self.log_models_dir + "/ROC_curve_no_slip.png")
-            self.__plot_roc_curve(y[:,1], y_predict[:,1], save_location=self.log_models_dir + "/ROC_curve_slip.png")
+        if create_plots:
+            self.__plot_classification(vel[:, 0], vel[:, 1],
+                                classes=(y_predict[:, 1] > self.slip_thresh),
+                                name="classification plot (predicted)",
+                                save_location=self.log_models_dir + "/classification_plot_all_predicted.png")
+            self.__plot_classification(vel[:, 0], vel[:, 1],
+                                classes=y.argmax(axis=1),
+                                name="classification plot (actual)",
+                                save_location=self.log_models_dir + "/classification_plot_all_actual.png")
+            self.__plot_classification(vel[:, 0], vel[:, 1],
+                                classes=y.argmax(axis=1) == (y_predict[:, 1] > self.slip_thresh),
+                                name="classification plot (correct)",
+                                save_location=self.log_models_dir + "/classification_plot_all_correct.png")
+            if np.shape(y)[1] == 2:
+                self.__plot_precision_recall_curve(y[:,0], y_predict[:,0], save_location=self.log_models_dir + "/PR_curve_no_slip.png")
+                self.__plot_precision_recall_curve(y[:,1], y_predict[:,1], save_location=self.log_models_dir + "/PR_curve_slip.png")
+                self.__plot_roc_curve(y[:,0], y_predict[:,0], save_location=self.log_models_dir + "/ROC_curve_no_slip.png")
+                self.__plot_roc_curve(y[:,1], y_predict[:,1], save_location=self.log_models_dir + "/ROC_curve_slip.png")
 
         if 'materials' in self.data_config and 'test_material' in self.data_config \
             and self.data_config['test_material'] == True:
@@ -333,19 +351,20 @@ class slip_detection_model:
                         with open(self.log_models_dir + "/classification_report_{}_ {}_{}.txt".format(m, s, self.training_config['epochs_complete']), "w") \
                             as text_file:
                             text_file.write(print_string)
-                # # Plot results
-                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                #                     classes=(y_predict_m[:, 1] > self.slip_thresh),
-                #                     name="classification plot (predicted)",
-                #                     save_location=self.log_models_dir + "/classification_plot_{}_predicted.png".format(m))
-                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                #                     classes=y_m.argmax(axis=1),
-                #                     name="classification plot (actual)",
-                #                     save_location=self.log_models_dir + "/classification_plot_{}_actual.png".format(m))
-                # self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
-                #                     classes=y_m.argmax(axis=1) == (y_predict_m[:, 1] > self.slip_thresh),
-                #                     name="classification plot (correct)",
-                #                     save_location=self.log_models_dir + "/classification_plot_{}_correct.png".format(m))
+                # Plot results
+                if create_plots:
+                    self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                        classes=(y_predict_m[:, 1] > self.slip_thresh),
+                                        name="classification plot (predicted)",
+                                        save_location=self.log_models_dir + "/classification_plot_{}_predicted.png".format(m))
+                    self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                        classes=y_m.argmax(axis=1),
+                                        name="classification plot (actual)",
+                                        save_location=self.log_models_dir + "/classification_plot_{}_actual.png".format(m))
+                    self.__plot_classification(vel_m[:, 0], vel_m[:, 1],
+                                        classes=y_m.argmax(axis=1) == (y_predict_m[:, 1] > self.slip_thresh),
+                                        name="classification plot (correct)",
+                                        save_location=self.log_models_dir + "/classification_plot_{}_correct.png".format(m))
 
     def get_model_directory(self):
         return self.log_models_dir

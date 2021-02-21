@@ -296,11 +296,13 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
         if 'data_format' in self.config and self.config['data_format'] == 'vector3D':
             x = np.reshape(x, (-1, self.series_len, 6))
         if self.transform_type:
-            if len(inputs) > 0 and 'data_format' in self.config and self.config['data_format'] != 'freq_image':
+            if len(outputs) > 0 and 'data_format' in self.config and self.config['data_format'] == 'freq_image':
+                y = self.transform[1].inverse_transform(outputs)
+            elif len(outputs) > 0 and 'data_format' in self.config and self.config['data_format'] == 'freq_power':
+                y = outputs
+            elif len(inputs) > 0:
                 for i, inp in enumerate(x):
                     x[i] = self.transform[0].inverse_transform(inp)
-            if len(outputs) > 0:
-                y = self.transform[1].inverse_transform(outputs)
         return x, y
 
     def get_class_nums(self):
@@ -380,6 +382,10 @@ class takktile_datagenerator(tf.keras.utils.Sequence):
             X = fft_real(X, axis=-1)[:,:,:,:fft_len]
             X = np.flip(X, 1)
             X[:,0,:,:] = np.flip(X[:,0,:,:], 1)
+        elif 'data_format' in self.config and self.config['data_format'] == 'freq_power':
+            fft_len = int(np.shape(X)[-2]/2) + 1
+            X = fft_real(np.sum(X, axis=-1), axis=-1)[:, 1:fft_len]
+            X = np.sum(X**2, axis=-1)
         return X, Y
 
     def __get_vel_label_batches(self, batches=[]):
