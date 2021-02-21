@@ -23,9 +23,9 @@ data:
   eval_data: false
   file_format: mat
   histogram: {create: false, save: false, slip_filter: 1}
-  label_dimension: translation
+  label_dimension: all
   label_type: slip
-  materials: [plastic, cylinder, sphere]
+  materials: [plastic, horizontal, vertical, sphere]
   num_dir_classes: 5
   radial_slip: true
   series_len: 100
@@ -39,10 +39,6 @@ data:
   train_dir: /train/
   truncate_pressure: 0
   use_pressure_delta: false
- 
- 
- 
- 
 net:
   activation: relu
   best_model_path: /home/abhinavg/catkin_ws/src/learning-slip-perception/utils/../logs/models/FREQ_20210212-011047/best_model/

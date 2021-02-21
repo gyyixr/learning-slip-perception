@@ -1,0 +1,19 @@
+CLASSIFICATION REPORT vertical 10cmps
+data: /home/abhinavg/data/takktile/data-v5
+exclude: ['foam', 'rotation', 'plastic', 'horizontal', 'sphere', '5cmps', '7cmps']
+Accuracy: 0.934375
+This is the classification report: 
+               precision    recall  f1-score   support
+
+           0     0.9757    0.9261    0.9502       866
+           1     0.8603    0.9517    0.9037       414
+
+   micro avg     0.9344    0.9344    0.9344      1280
+   macro avg     0.9180    0.9389    0.9270      1280
+weighted avg     0.9383    0.9344    0.9352      1280
+
+This is the confusion matrix: 
+ [[802  64]
+ [ 20 394]]
+This is the cohen Kappa score: 
+ 0.854098592008
