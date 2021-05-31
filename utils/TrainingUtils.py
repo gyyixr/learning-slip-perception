@@ -1,9 +1,9 @@
 #!/usr/bin/env python2.7
 
 """
-utils.py
+TrainingUtils.py
 
-General Utils for slip detection
+Training Utils for slip detection
 
 Developed at UTIAS, Toronto.
 

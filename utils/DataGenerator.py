@@ -33,7 +33,7 @@ import tensorflow as tf
 from DataLoader import takktile_dataloader
 from ConfigUtils import load_yaml
 from DataAugment import takktile_data_augment
-from utils import fft_real
+from TrainingUtils import fft_real
 
 # CONSTANTS
 ALL_VALID = 1
